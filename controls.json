@@ -1,0 +1,9 @@
+{
+    "left" : 4,
+    "right" : 7,
+    "forward" : 26,
+    "backward" : 22,
+    "up" : 44,
+    "down" : 224,
+    "toggle_tri_mode" : 9
+}
