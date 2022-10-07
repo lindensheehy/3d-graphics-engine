@@ -1,7 +1,7 @@
 import pygame as pg
 import numpy as np
 import math, time, json, random
-from mathfuncs import my_math_functions as mf
+from mathfuncs import my_math_functions as m
 
 # These classes are used to create variables with attributes. For example coordinates or angles
 class vec2d:
@@ -21,6 +21,9 @@ class vec3d:
         self.x = x
         self.y = y
         self.z = z
+
+    def __str__(self):
+        return f"x: {self.x}, y: {self.y}, z: {self.z}"
 
     def to_tuple(self):
         return (self.x, self.y, self.z)
@@ -61,16 +64,16 @@ class object:
         self.acceleration = vec3d(0, 0, 0)
 
     def do_frame():
-        for obj in instances:
-            obj.x += obj.velocity.x * dt
-            obj.y += obj.velocity.y * dt
-            obj.z += obj.velocity.z * dt
+        for obj in object.instances:
+            obj.x += obj.velocity.x * global_.dt
+            obj.y += obj.velocity.y * global_.dt
+            obj.z += obj.velocity.z * global_.dt
 
-            obj.velocity.x += obj.acceleration.x * dt
-            obj.velocity.y += obj.acceleration.y * dt
-            obj.velocity.z += obj.acceleration.z * dt
+            obj.velocity.x += obj.acceleration.x * global_.dt
+            obj.velocity.y += obj.acceleration.y * global_.dt
+            obj.velocity.z += obj.acceleration.z * global_.dt
 
-            obj.velocity.y += gravity * dt
+            obj.velocity.y += global_.gravity * global_.dt
 
 class tri:
     pass
@@ -121,35 +124,6 @@ class display:
         display.bounds.top = angle_rollover(camera.pitch - (camera.fov.y / 2))
         display.bounds.bottom = angle_rollover(camera.pitch + (camera.fov.y / 2))
     '''
-
-class screen_borders:
-    '''
-    Contains information about how the screen bounds can be represented as eqations for the collision function.
-    '''
-
-    class left:
-        dx = 0
-        dy = 750
-        ox = 0
-        oy = 0
-
-    class right:
-        dx = 0
-        dy = 750
-        ox = 1500
-        oy = 0
-
-    class top:
-        dx = 1500
-        dy = 0
-        ox = 0
-        oy = 750
-
-    class bottom:
-        dx = 1500
-        dy = 0
-        ox = 0
-        oy = 0
 
 # Math Functions
 def rotate2d(point: tuple, degrees: float, around: tuple = (0, 0)) -> vec2d:
@@ -207,7 +181,7 @@ def points_to_mesh_2d(points: tuple) -> tuple:
     start_point = points[0]
     angles = []
     for p in points[1:]:
-        angles.append([get_angle(start_point, p), p])
+        angles.append([m.get_angle(start_point, p), p])
     angles.sort()
 
     mesh = []
@@ -399,9 +373,9 @@ def handle_input():   # Do all necessary actions based on played input
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
         if global_.dmouse_pos[0] != 0:
-            camera.yaw = angle_rollover(camera.yaw - (global_.dmouse_pos[0] / 10), 360)
+            camera.yaw = m.angle_rollover(camera.yaw - (global_.dmouse_pos[0] / 10), 360)
         if global_.dmouse_pos[1] != 0:
-            camera.pitch = angle_rollover(camera.pitch - (global_.dmouse_pos[1] / 10), 360)
+            camera.pitch = m.angle_rollover(camera.pitch - (global_.dmouse_pos[1] / 10), 360)
         global_.mouse_left_was_down = True
 
     # Change camera pitch to be in the range 270, 90
@@ -443,25 +417,25 @@ def get_screen_pos(point: vec3d, restrict_to_window = False):   # Returns a the 
         return None
 
     # x angle from camera to points location after accounting for cam rotation
-    anglex = get_angle((relative.x, relative.z), (camera.pos.x, camera.pos.z))
+    anglex = m.get_angle((relative.x, relative.z), (camera.pos.x, camera.pos.z))
     anglex = round(anglex, 2)
 
     # y angle from camera to points location after accounting for cam rotation
     dy = relative.y - camera.pos.y
-    dist = distance((camera.pos.x, camera.pos.z), (relative.x, relative.z))
-    angley = get_angle((dy, dist))
+    dist = m.distance((camera.pos.x, camera.pos.z), (relative.x, relative.z))
+    angley = m.get_angle((dy, dist))
     angley = round(360 - angley, 2)
 
     # Gets a float from 0-1 indicating how far from the left of the window the point should be drawn
-    in_range_x = in_angle(display.bounds.left, display.bounds.right, anglex)
-    in_range_y = in_angle(display.bounds.top, display.bounds.bottom, angley)
+    in_range_x = m.in_angle(display.bounds.left, display.bounds.right, anglex)
+    in_range_y = m.in_angle(display.bounds.top, display.bounds.bottom, angley)
 
     # Get where the point would be if the window was wide enough to show it, 
     # Only do this if restrict_to_window was false AND the point is not already on the screen
     if not restrict_to_window and (in_range_x == None or in_range_y == None):
 
-        in_range_x = in_angle(-180, 180, angle_rollover(anglex + 180) - 180)
-        in_range_y = in_angle(-180, 180, angle_rollover(angley + 180) - 180)
+        in_range_x = m.in_angle(-180, 180, m.angle_rollover(anglex + 180) - 180)
+        in_range_y = m.in_angle(-180, 180, m.angle_rollover(angley + 180) - 180)
 
         screen_pos[0] = in_range_x * (display.width * 3) - display.width
         screen_pos[1] = in_range_y * (display.height * 4) - (display.height * (3 / 2))
@@ -518,7 +492,7 @@ def draw_tri(p1: tuple, p2: tuple, p3: tuple) -> bool:
     pos2 = get_screen_pos(p2.pos, False)
     pos3 = get_screen_pos(p3.pos, False)
 
-    poly = restrict_tri((pos1, pos2, pos3))
+    poly = m.restrict_tri((pos1, pos2, pos3))
     poly_mesh = points_to_mesh_2d(poly)
     
     for tri in poly_mesh:
@@ -535,11 +509,10 @@ def create_tri_from_ui():
         if p.hovered == True:
             #p.label = "p" + str(len(current_tri) + 1)
             global_.current_tri.append(p)
+            print(p.pos)
             if len(global_.current_tri) == 3:
                 global_.tris.append(global_.current_tri)
                 global_.tri_mode = False
-    
-    print(global_.current_tri)
 
     return
 
@@ -565,7 +538,7 @@ def main():
         for point in global_.points:
             point_pos = get_dot(point, True)
             if point_pos != None:
-                if distance(tuple(point_pos), global_.mouse_pos) < 5:
+                if m.distance(tuple(point_pos), global_.mouse_pos) < 5:
                     point.hovered = True
                 else:
                     point.hovered = False

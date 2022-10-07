@@ -4,6 +4,18 @@ import math
 # These are all the raw number manipulation functions
 # Some math function are still in main becuase they rely on 
 # 
+
+class line_equation:
+    def __init__(self, dx: float = 0, dy: float = 0, ox: float = 0, oy: float = 0):
+        self.dx = dx
+        self.dy = dy
+        self.ox = ox
+        self.oy = oy
+        try:
+            self.m = dy / dx
+        except ZeroDivisionError:
+            self.m = None
+
 class my_math_functions:
     
     def angle_rollover(angle: float, max: float = 360) -> float:
@@ -113,28 +125,20 @@ class my_math_functions:
         Returns None if lines do not collide
         '''
 
-        # Building First Equation:  y = eq1[0] * (x - eq1[1]) + eq1[2]
+        # Building First Equation:  y = eq1.m * (x - eq1.ox) + eq1.oy
         eq1_is_vertical = False
-        eq1 = [0, ox1, oy1]
+        eq1 = line_equation(dx1, dy1, ox1, oy1)
 
-        try:
-            m1 = dy1 / dx1
-            eq1[0] = m1
-        except ZeroDivisionError:
+        if eq1.m == None:
             eq1_is_vertical = True
-            eq1 = [ox1]
 
 
-        # Building Second Equation:  y = eq2[0] * (x - eq2[1]) + eq2[2]
+        # Building Second Equation:  y = eq2.m * (x - eq2.ox) + eq2.oy
         eq2_is_vertical = False
-        eq2 = [0, ox2, oy2]
+        eq2 = line_equation(dx2, dy2, ox2, oy2)
 
-        try:
-            m2 = dy2 / dx2
-            eq2 = [m2, ox2, oy2]
-        except ZeroDivisionError:
+        if eq2.m == None:
             eq2_is_vertical = True
-            eq2 = [ox2]
 
         # If Both lines are vertical, there is no collision
         if eq1_is_vertical and eq2_is_vertical:
@@ -142,22 +146,22 @@ class my_math_functions:
 
         # Solve for x by substitution
         if eq1_is_vertical:
-            x = eq1[0]   # If equation 1 is vertical, the x must be equal to ox1
+            x = eq1.ox  # If equation 1 is vertical, the x must be equal to ox1
         elif eq2_is_vertical:
-            x = eq2[0]   # If equation 2 is vertical, the x must be equal to ox2
+            x = eq2.ox   # If equation 2 is vertical, the x must be equal to ox2
         else:
             try:
                 # This huge equation is just a reformed version of:  m1 * (x - ox1) + oy1 = m2 * (x - ox2) + oy2, where x is isolated
-                x = ((eq2[2] + (eq1[0] * eq1[1])) - (eq1[2] + (eq2[0] * eq2[1]))) / (eq1[0] - eq2[0])
+                x = ((eq2.oy + (eq1.m * eq1.ox)) - (eq1.oy + (eq2.m * eq2.ox))) / (eq1.m - eq2.m)
             except ZeroDivisionError:
                 # The slopes of both lines are equal, meaning no collision
                 return None
 
         # Solve for y based on x using eq1
         try:
-            y = eq1[0] * (x - eq1[1]) + eq1[2]
+            y = eq1.m * (x - eq1.ox) + eq1.oy
         except IndexError:
-            y = eq2[0] * (x - eq2[1]) + eq2[2]
+            y = eq2.m * (x - eq2.ox) + eq2.oy
 
         return (x, y)
 
@@ -165,17 +169,17 @@ class my_math_functions:
         '''
         Returns a list of tuples of x and y coordinates for the shape of the triangle after being bound
         '''
-
+        m = my_math_functions
         # If either all points are inside the bounds or all are outside, return tri
-        if in_bounds(tri[0], bounds) and in_bounds(tri[1], bounds) and in_bounds(tri[2], bounds):
+        if m.in_bounds(tri[0], bounds) and m.in_bounds(tri[1], bounds) and m.in_bounds(tri[2], bounds):
             return tri
-        if (not in_bounds(tri[0], bounds)) and (not in_bounds(tri[1], bounds)) and (not in_bounds(tri[2], bounds)):
+        if (not m.in_bounds(tri[0], bounds)) and (not m.in_bounds(tri[1], bounds)) and (not m.in_bounds(tri[2], bounds)):
             return tri
 
         # Variable initiation
         new_points = []
 
-        border = [screen_borders.left, screen_borders.right, screen_borders.top, screen_borders.bottom]
+        border = [line_equation(dy = 750), line_equation(dy = 750, ox = 1500), line_equation(dx = 1500, oy = 750), line_equation(dx = 1500)]
 
         for i in range(3):
 
