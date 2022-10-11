@@ -140,6 +140,7 @@ class my_math_functions:
         if eq2.m == None:
             eq2_is_vertical = True
 
+
         # If Both lines are vertical, there is no collision
         if eq1_is_vertical and eq2_is_vertical:
             return None
@@ -160,12 +161,15 @@ class my_math_functions:
         # Solve for y based on x using eq1
         try:
             y = eq1.m * (x - eq1.ox) + eq1.oy
-        except IndexError:
+        except TypeError:
             y = eq2.m * (x - eq2.ox) + eq2.oy
 
         return (x, y)
 
     def restrict_tri(tri: tuple = ((0, 0), (0, 0), (0, 0)), bounds: tuple = ((0, 1500), (0, 750))) -> list:
+        if None in tri:
+            print(tri)
+            raise Exception("One of the points in the triangle was None")
         '''
         Returns a list of tuples of x and y coordinates for the shape of the triangle after being bound
         '''
@@ -199,9 +203,9 @@ class my_math_functions:
 
             # Check if the line between the points collides with any of the borders at a point inside the bounds of the points.
             for i in border:
-                p = collision(dx, dy, ox, oy, i.dx, i.dy, i.ox, i.oy)
+                p = m.collision(dx, dy, ox, oy, i.dx, i.dy, i.ox, i.oy)
                 try:
-                    if in_bounds(p, point_bounds):
+                    if m.in_bounds(p, point_bounds):
                         new_points.append(p)
                 except TypeError:
                     pass
@@ -209,7 +213,7 @@ class my_math_functions:
         poly = []
 
         for p in tri:
-            if in_bounds(p, bounds):
+            if m.in_bounds(p, bounds):
                 poly.append(p)
 
         poly += new_points

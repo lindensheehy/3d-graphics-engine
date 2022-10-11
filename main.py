@@ -93,12 +93,16 @@ class global_:
     fps = None   # Contains a string of how many fps the display is running at
     font = None   # Pygames font object, used to write text to screen
     gravity = None   # Number representing the gravitational acceleration
+    abs_floor = None   # The lowest y value the player/camera can go to
+    tri_mode = None   # If true, the user can click 3 points to make a triangle
+    fly_mode = None   # If true, the player will not be affected by gravity and will fly
 
 class camera:
 
     movement_speed = 60
 
     pos = vec3d(0, 0, 0)
+    vel = vec3d(0, 0, 0)
 
     yaw = 0   # Around y axis, on the xz plane
     pitch = 0   # Around x axis, on the yz plane
@@ -208,6 +212,9 @@ def init_vars():
     # Boolean if user is defining a triangle or not. Changes/disables some controls.
     global_.tri_mode = False
 
+    # Boolean value for if the player can fly or not. If True, gravity wont affect the player
+    global_.fly_mode = True
+
     # Pygame surface of the window
     global_.screen = pg.display.set_mode((display.width, display.height))
 
@@ -249,20 +256,26 @@ def init_vars():
 
     # Set the global gravitational acceleration
     # Gravity affects the y velocity of objects
-    global_.gravity = -10
+    global_.gravity = -500
+
+    global_.abs_floor = 0
 
     return
 
-def update_dt():   # Gets new dt (delta time) and sets time_one to current time for next call
-
+def update_dt():
+    '''
+    Gets new dt (delta time) and sets time_one to current time for next call
+    '''
     global_.dt = time.time() - global_.time_one
     global_.time_one = time.time()
     global_.timer += global_.dt
 
     return
 
-def update_mouse_pos():   # Updates both mouse_pos and dmouse_pos (delta mouse_pos)
-
+def update_mouse_pos():
+    '''
+    Updates both mouse_pos and dmouse_pos (delta mouse_pos)
+    '''
     new_mouse_pos = pg.mouse.get_pos()
     global_.dmouse_pos = (
         global_.mouse_pos[0] - new_mouse_pos[0], 
@@ -272,8 +285,10 @@ def update_mouse_pos():   # Updates both mouse_pos and dmouse_pos (delta mouse_p
 
     return
 
-def draw_fps():   # Draws the fps counter to the top left of the screen
-
+def draw_fps():
+    '''
+    Draws the fps counter to the top left of the screen
+    '''
     global_.font = pg.font.SysFont('arial', 15)
 
     if global_.timer > 1:
@@ -286,6 +301,18 @@ def draw_fps():   # Draws the fps counter to the top left of the screen
     global_.screen.blit(global_.fps, (10, 10))
 
     return
+
+def do_physics():
+    '''
+    Makes all objects do what they need to do for the frame
+    Only does velocity, acceleration etc.
+    '''
+    if not global_.fly_mode:
+        camera.vel.y += global_.gravity * global_.dt
+        camera.pos.y += camera.vel.y * global_.dt
+        if camera.pos.y < global_.abs_floor:
+            camera.vel.y = 0
+            camera.pos.y = global_.abs_floor
 
 # All the other stuff
 def get_player_input():   # Returns array of keys pressed
@@ -335,6 +362,16 @@ def handle_input():   # Do all necessary actions based on played input
         # Movement
         cam_mov_vector = vec2d(0, 0)
 
+        # Up and down movement
+        if global_.fly_mode:
+            if key[0] == controls["up"]:
+                camera.pos.y += distance_moved
+            if key[0] == controls["down"]:
+                camera.pos.y -= distance_moved
+        else:
+            if key[0] == controls["up"] and not key[1]:
+                camera.vel.y = 350
+
         if key[0] == controls["left"]:
             cam_mov_vector.x -= distance_moved
         elif key[0] == controls["right"]:
@@ -343,10 +380,6 @@ def handle_input():   # Do all necessary actions based on played input
             cam_mov_vector.y += distance_moved
         elif key[0] == controls["backward"]:
             cam_mov_vector.y -= distance_moved
-        elif key[0] == controls["up"]:
-            camera.pos.y += distance_moved
-        elif key[0] == controls["down"]:
-            camera.pos.y -= distance_moved
 
         # Change (x, z) movement vector based on camera yaw rotation so the forward key always goes forwards
         cam_mov = rotate2d(cam_mov_vector.to_tuple(), -camera.yaw)
@@ -356,6 +389,9 @@ def handle_input():   # Do all necessary actions based on played input
         # Other
         if key[0] == controls["toggle_tri_mode"] and not key[1]:
             global_.tri_mode = not global_.tri_mode
+
+        if key[0] == controls["toggle_fly_mode"] and not key[1]:
+            global_.fly_mode = not global_.fly_mode
 
     if global_.tri_mode:
 
@@ -528,12 +564,20 @@ def main():
         
         events = pg.event.get()
 
+        print(global_.fly_mode)
+
         update_dt()
         update_mouse_pos()
 
         handle_input()
 
+        do_physics()
+
         global_.screen.fill((0, 0, 0))
+        h = rotate2d((500, 0), -camera.pitch).y
+        h = min(375, max(-375, h))
+        pg.draw.rect(global_.screen, (50, 50, 150), pg.Rect(0, 0, 1500, h + 350))
+        pg.draw.rect(global_.screen, (25, 25, 75), pg.Rect(0, h + 350, 1500, 25))
 
         for point in global_.points:
             point_pos = get_dot(point, True)
