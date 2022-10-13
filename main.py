@@ -33,6 +33,88 @@ class vec3d:
         self.y *= factor
         self.z *= factor
 
+class matrix2d:
+    def __init__(self, vals):
+        '''
+        Define a square 2d matrix as an array
+        '''
+        self.vals = vals
+        self.rx = len(vals[0])
+        self.ry = len(vals)
+        self.square = self.rx == self.ry
+
+    def add_row(self, items: list):
+        if len(items) != self.rx:
+            raise Exception(f"Attempted to add list {items} as a row to a matrix with {self.rx} collums")
+        self.vals += [items]
+        self.ry += 1
+        self.square = self.rx == self.ry
+
+    def add_collum(self, items: list):
+        if len(items) != self.ry:
+            raise Exception(f"Attempted to add list {items} as a collum to a matrix with {self.ry} rows")
+        for index, item in enumerate(items):
+            self.vals[index] += [item]
+        self.rx += 1
+        self.square = self.rx == self.ry
+
+    def flip(self):
+        '''
+        Changes the matrix to that the y rows become x rows and vise versa
+        '''
+        final_value = []
+        for i in range(self.rx):
+            items = []
+            for ii in range(self.ry):
+                items += [self.vals[ii][i]]
+            final_value += [items]
+        self.vals = final_value
+
+    def subset(self, startx: int, starty: int, sizex: int, sizey: int):
+        final_value = []
+        if startx + sizex <= self.rx and starty + sizey <= self.ry:
+            for i in range(starty, starty + sizey):
+                final_value.append(self.vals[i][startx:startx + sizex])
+        return matrix2d(final_value)
+
+    def determinant(self) -> float:
+        '''
+        Returns the determinant of a matrix with size r (r by r matrix)
+        '''
+
+        if self.square == False:
+            raise Exception(f"matrix2d.determinant() was called on a matrix with dimensions {self.rx} x {self.ry}")
+
+        # If the matrix is 1x1, which it really should never be, the function returns the only value.
+        if self.rx == 1:
+            return self.vals[0][0]
+
+        # If the matrix is 2x2, the other way of computing determinant will give 0, so this is done instead
+        if self.rx == 2:
+            return (self.vals[0][0] * self.vals[1][1]) - (self.vals[0][1] * self.vals[1][0])
+            pass
+
+        # Looks super complicated but really all this does is takes the products of numbers in diagonal lines
+        # The magority of the complication here is allowing this function to work for any size matrix
+
+        total = 0
+
+        # First add all the products of the down right diagonals
+        for i in range(self.rx):
+            product = 1
+            for ii in range(self.rx):
+                product *= self.vals[ii][m.rollover(i + ii, -1, self.r - 1)]
+            total += product
+        
+        # Then subtract all the products of the diagonals down left
+        for i in range(self.rx):
+            product = 1
+            for ii in range(self.rx):
+                product *= self.vals[ii][m.rollover(i - ii, -1, self.r - 1)]
+            total -= product
+        
+        return total
+
 class new_point:
     def __init__(self, pos: vec3d):
         self.pos = pos
@@ -76,6 +158,14 @@ class object:
             obj.velocity.y += global_.gravity * global_.dt
 
 class tri:
+    def __init__(p1, p2p, p3):
+        self.p1 = p1
+        self.p2 = p2
+        self.p3 = p3
+        self.v12 = vec3d(p1.pos.x - p2.pos.x, p1.pos.y - p2.pos.y, p1.pos.z - p2.pos.z)
+        self.v23 = vec3d(p2.pos.x - p3.pos.x, p2.pos.y - p3.pos.y, p2.pos.z - p3.pos.z)
+        self.v31 = vec3d(p3.pos.x - p1.pos.x, p3.pos.y - p1.pos.y, p3.pos.z - p1.pos.z)
+
     pass
 
 class mesh:
@@ -103,6 +193,7 @@ class camera:
 
     pos = vec3d(0, 0, 0)
     vel = vec3d(0, 0, 0)
+    acc = vec3d(0, 0, 0)
 
     yaw = 0   # Around y axis, on the xz plane
     pitch = 0   # Around x axis, on the yz plane
@@ -123,10 +214,10 @@ class display:
 
     '''
     def update_bounds():
-        display.bounds.left = angle_rollover(camera.yaw - (camera.fov.x / 2))
-        display.bounds.right = angle_rollover(camera.yaw + (camera.fov.x / 2))
-        display.bounds.top = angle_rollover(camera.pitch - (camera.fov.y / 2))
-        display.bounds.bottom = angle_rollover(camera.pitch + (camera.fov.y / 2))
+        display.bounds.left = rollover(camera.yaw - (camera.fov.x / 2))
+        display.bounds.right = rollover(camera.yaw + (camera.fov.x / 2))
+        display.bounds.top = rollover(camera.pitch - (camera.fov.y / 2))
+        display.bounds.bottom = rollover(camera.pitch + (camera.fov.y / 2))
     '''
 
 # Math Functions
@@ -178,6 +269,20 @@ def rotate3d(point: tuple, angle: tuple, around: tuple = (0, 0, 0)) -> vec3d:
         p.z, p.y = rotate2d((p.z, p.y), pitch, (a.z, a.y)).to_tuple()
 
     return vec3d(p.x, p.y, p.z)
+
+def cross_product(v1: vec3d, v2: vec3d) -> vec3d:
+    matrix = matrix2d([[v1.x, v1.y, v1.z], [v2.x, v2.y, v2.z]])
+    # x and z are easy beacuse they just use matrices drawn directly from the inital one
+    x = matrix.subset(1, 0, 2, 2).determinant()
+    z = matrix.subset(0, 0, 2, 2).determinant()
+
+    # y is a bit more complex becuase it requires parts from either side of the matrix
+    mat1 = matrix.subset(0, 0, 1, 2)
+    mat2 = matrix.subset(2, 0, 1, 2)
+    mat2.flip()
+    mat1.add_collum(mat2.vals[0])
+    y = mat1.determinant()
+    return vec3d(x, y, z)
 
 def points_to_mesh_2d(points: tuple) -> tuple:
     
@@ -409,9 +514,9 @@ def handle_input():   # Do all necessary actions based on played input
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
         if global_.dmouse_pos[0] != 0:
-            camera.yaw = m.angle_rollover(camera.yaw - (global_.dmouse_pos[0] / 10), 360)
+            camera.yaw = m.rollover(camera.yaw - (global_.dmouse_pos[0] / 10), 360)
         if global_.dmouse_pos[1] != 0:
-            camera.pitch = m.angle_rollover(camera.pitch - (global_.dmouse_pos[1] / 10), 360)
+            camera.pitch = m.rollover(camera.pitch - (global_.dmouse_pos[1] / 10), 360)
         global_.mouse_left_was_down = True
 
     # Change camera pitch to be in the range 270, 90
@@ -470,8 +575,8 @@ def get_screen_pos(point: vec3d, restrict_to_window = False):   # Returns a the 
     # Only do this if restrict_to_window was false AND the point is not already on the screen
     if not restrict_to_window and (in_range_x == None or in_range_y == None):
 
-        in_range_x = m.in_angle(-180, 180, m.angle_rollover(anglex + 180) - 180)
-        in_range_y = m.in_angle(-180, 180, m.angle_rollover(angley + 180) - 180)
+        in_range_x = m.in_angle(-180, 180, m.rollover(anglex + 180) - 180)
+        in_range_y = m.in_angle(-180, 180, m.rollover(angley + 180) - 180)
 
         screen_pos[0] = in_range_x * (display.width * 3) - display.width
         screen_pos[1] = in_range_y * (display.height * 4) - (display.height * (3 / 2))
@@ -607,4 +712,15 @@ def main():
 
 # Check if file is being run as main
 if __name__ == "__main__":
-    main()
+    #print(determinant([[3, 4], [9, -4]], 2))
+    x = matrix2d([
+        [1, 2], 
+        [5, 6],
+    ])
+    x.flip()
+    print(x.vals)
+    print(cross_product(
+        vec3d(3, 7, -2), 
+        vec3d(6, -1, 4)
+    ))
+    #main()

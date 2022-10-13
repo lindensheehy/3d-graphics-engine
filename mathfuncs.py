@@ -18,23 +18,23 @@ class line_equation:
 
 class my_math_functions:
     
-    def angle_rollover(angle: float, max: float = 360) -> float:
+    def rollover(num: float, min: float = 0, max: float = 360) -> float:
         '''
         Changes angles so they are always within 0-360.  
         (-10) -> 350
         (370) -> 10
         '''
-        new_angle = angle
+        new_num = num
 
         while True:
-            if new_angle > max:
-                new_angle -= max
-            elif new_angle < 0:
-                new_angle += max
+            if new_num > max:
+                new_num -= (max - min)
+            elif new_num < min:
+                new_num += (max - min)
             else:
                 break
 
-        return new_angle
+        return new_num
 
     def in_angle(low: float, high: float, val: float) -> float:
         '''
