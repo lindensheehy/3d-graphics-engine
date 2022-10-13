@@ -1,3 +1,4 @@
+from audioop import cross
 import pygame as pg
 import numpy as np
 import math, time, json, random
@@ -9,29 +10,34 @@ class vec2d:
         self.x = x
         self.y = y
 
-    def to_tuple(self):
-        return (self.x, self.y)
+    def __str__(self):
+        return f"x: {self.x}, y: {self.y}"
+
+    def __iter__(self):
+        yield self.x
+        yield self.y
 
     def scale(self, factor):
         self.x *= factor
         self.y *= factor
 
 class vec3d:
-    def __init__(self, x, y, z):
+    def __init__(self, x: float, y: float, z: float):
         self.x = x
         self.y = y
         self.z = z
+        self.magnitude = math.sqrt((x ** 2) + (y ** 2) + (z ** 2))
 
     def __str__(self):
         return f"x: {self.x}, y: {self.y}, z: {self.z}"
 
-    def to_tuple(self):
-        return (self.x, self.y, self.z)
+    def __iter__(self):
+        yield self.x
+        yield self.y
+        yield self.z
 
-    def scale(self, factor):
-        self.x *= factor
-        self.y *= factor
-        self.z *= factor
+    def scale(self, factor: float):
+        return vec3d(self.x * factor, self.y * factor, self.z * factor)
 
 class matrix2d:
     def __init__(self, vals):
@@ -158,15 +164,14 @@ class object:
             obj.velocity.y += global_.gravity * global_.dt
 
 class tri:
-    def __init__(p1, p2p, p3):
+    def __init__(self, p1: vec3d, p2: vec3d, p3: vec3d):
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
-        self.v12 = vec3d(p1.pos.x - p2.pos.x, p1.pos.y - p2.pos.y, p1.pos.z - p2.pos.z)
-        self.v23 = vec3d(p2.pos.x - p3.pos.x, p2.pos.y - p3.pos.y, p2.pos.z - p3.pos.z)
-        self.v31 = vec3d(p3.pos.x - p1.pos.x, p3.pos.y - p1.pos.y, p3.pos.z - p1.pos.z)
-
-    pass
+        self.v12 = vec3d(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
+        self.v23 = vec3d(p2.x - p3.x, p2.y - p3.y, p2.z - p3.z)
+        self.v31 = vec3d(p3.x - p1.x, p3.y - p1.y, p3.z - p1.z)
+        self.normal = cross_product(self.v12, self.v23)
 
 class mesh:
     pass
@@ -196,8 +201,10 @@ class camera:
     acc = vec3d(0, 0, 0)
 
     yaw = 0   # Around y axis, on the xz plane
-    pitch = 0   # Around x axis, on the yz plane
+    pitch = 0   # Vertically, on the axis of yaw
     roll = 0   # Around z axis, on the yx plane
+
+    rotvec = vec3d(1, 0, 0)
 
     fov = vec2d(120, 90)
 
@@ -261,28 +268,37 @@ def rotate3d(point: tuple, angle: tuple, around: tuple = (0, 0, 0)) -> vec3d:
 
     # If yaw is not 0, rotate point about the y axis
     if yaw != 0:
-        p.x, p.z = rotate2d((p.x, p.z), yaw, (a.x, a.z)).to_tuple()
+        p.x, p.z = tuple(rotate2d((p.x, p.z), yaw, (a.x, a.z)))
 
     # If pitch is not 0, rotate point about the x axis
     # Because yaw rotation is done first, camera pitch always lines up with rotation around the x axis
     if pitch != 0:
-        p.z, p.y = rotate2d((p.z, p.y), pitch, (a.z, a.y)).to_tuple()
+        p.z, p.y = tuple(rotate2d((p.z, p.y), pitch, (a.z, a.y)))
 
     return vec3d(p.x, p.y, p.z)
 
 def cross_product(v1: vec3d, v2: vec3d) -> vec3d:
-    matrix = matrix2d([[v1.x, v1.y, v1.z], [v2.x, v2.y, v2.z]])
-    # x and z are easy beacuse they just use matrices drawn directly from the inital one
-    x = matrix.subset(1, 0, 2, 2).determinant()
-    z = matrix.subset(0, 0, 2, 2).determinant()
-
-    # y is a bit more complex becuase it requires parts from either side of the matrix
-    mat1 = matrix.subset(0, 0, 1, 2)
-    mat2 = matrix.subset(2, 0, 1, 2)
-    mat2.flip()
-    mat1.add_collum(mat2.vals[0])
-    y = mat1.determinant()
+    '''
+    Returns a 3d vector of the cross product between v1 and v2
+    In other words a vector perpendicular to v1 and v2
+    '''
+    x = (v1.y * v2.z) - (v1.z * v2.y)
+    y = (v1.z * v2.x) - (v1.x * v2.z)
+    z = (v1.x * v2.y) - (v1.y * v2.x)
     return vec3d(x, y, z)
+
+def dot_product(v1: vec3d, v2: vec3d) -> vec3d:
+    '''
+    Returns the dot product of v1 and v2
+    Used to find angle between vectors
+    '''
+    return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)
+
+def angle_between(v1: vec3d, v2: vec3d) -> vec3d:
+    '''
+    Returns the angle between 2 vectors in 3d space (along the plane they share)
+    '''
+    return math.degrees(math.acos((dot_product(v1, v2)) / (v1.magnitude * v2.magnitude)))
 
 def points_to_mesh_2d(points: tuple) -> tuple:
     
@@ -302,6 +318,10 @@ def points_to_mesh_2d(points: tuple) -> tuple:
         mesh.append((start_point, p1, p2))
 
     return mesh
+
+def tri_facing_cam(tri: tri) -> float:
+    angle = min(angle_between(camera.rotvec, tri.normal), angle_between(camera.rotvec, tri.normal.scale(-1)))
+    return m.num_between(angle, 0, 180)
 
 # Setup and every frame update functions
 def init_vars():
@@ -487,7 +507,7 @@ def handle_input():   # Do all necessary actions based on played input
             cam_mov_vector.y -= distance_moved
 
         # Change (x, z) movement vector based on camera yaw rotation so the forward key always goes forwards
-        cam_mov = rotate2d(cam_mov_vector.to_tuple(), -camera.yaw)
+        cam_mov = rotate2d(tuple(cam_mov_vector), -camera.yaw)
         camera.pos.x += cam_mov.x
         camera.pos.z += cam_mov.y
 
@@ -514,10 +534,12 @@ def handle_input():   # Do all necessary actions based on played input
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
         if global_.dmouse_pos[0] != 0:
-            camera.yaw = m.rollover(camera.yaw - (global_.dmouse_pos[0] / 10), 360)
+            camera.yaw = m.rollover(camera.yaw - (global_.dmouse_pos[0] / 10))
         if global_.dmouse_pos[1] != 0:
-            camera.pitch = m.rollover(camera.pitch - (global_.dmouse_pos[1] / 10), 360)
+            camera.pitch = m.rollover(camera.pitch - (global_.dmouse_pos[1] / 10))
         global_.mouse_left_was_down = True
+
+    camera.rotvec = rotate3d((1, 0, 0), (camera.yaw, camera.pitch))
 
     # Change camera pitch to be in the range 270, 90
     if camera.pitch > 90 and camera.pitch <= 180:
@@ -547,7 +569,7 @@ def get_screen_pos(point: vec3d, restrict_to_window = False):   # Returns a the 
     screen_pos = [0, 0]
 
     # Get the points location relative to the x rotation of the camera
-    relative = rotate3d(point.to_tuple(), (camera.yaw, camera.pitch), camera.pos.to_tuple())
+    relative = rotate3d(tuple(point), (camera.yaw, camera.pitch), tuple(camera.pos))
 
     if global_.tri_mode:
         #relative.z -= (distance((camera.pos.x, camera.pos.y), (relative.x, relative.y)) / 2)
@@ -624,20 +646,21 @@ def get_dot(point, draw = True) -> tuple:   # Gets and returns screen position o
 
     return screen_pos
 
-def draw_tri(p1: tuple, p2: tuple, p3: tuple) -> bool:
+def draw_tri(tri_: tri) -> bool:
 
-    if get_screen_pos(p1.pos) == None and get_screen_pos(p2.pos) == None and get_screen_pos(p3.pos) == None:
+    if get_screen_pos(tri_.p1) == None and get_screen_pos(tri_.p2) == None and get_screen_pos(tri_.p3) == None:
         return None
 
-    pos1 = get_screen_pos(p1.pos, False)
-    pos2 = get_screen_pos(p2.pos, False)
-    pos3 = get_screen_pos(p3.pos, False)
+    pos1 = get_screen_pos(tri_.p1, False)
+    pos2 = get_screen_pos(tri_.p2, False)
+    pos3 = get_screen_pos(tri_.p3, False)
 
     poly = m.restrict_tri((pos1, pos2, pos3))
     poly_mesh = points_to_mesh_2d(poly)
     
     for tri in poly_mesh:
-        pg.draw.polygon(global_.screen, (255, 255, 255), tri, width=0)
+        shade = tri_facing_cam(tri_)
+        pg.draw.polygon(global_.screen, (shade * 255, shade * 255, shade * 255), tri, width=0)
 
     return True
 
@@ -652,7 +675,11 @@ def create_tri_from_ui():
             global_.current_tri.append(p)
             print(p.pos)
             if len(global_.current_tri) == 3:
-                global_.tris.append(global_.current_tri)
+                global_.tris.append(tri(
+                    global_.current_tri[0].pos, 
+                    global_.current_tri[1].pos, 
+                    global_.current_tri[2].pos
+                ))
                 global_.tri_mode = False
 
     return
@@ -669,7 +696,7 @@ def main():
         
         events = pg.event.get()
 
-        print(global_.fly_mode)
+        #print(global_.fly_mode)
 
         update_dt()
         update_mouse_pos()
@@ -679,8 +706,10 @@ def main():
         do_physics()
 
         global_.screen.fill((0, 0, 0))
+
+        # Draw the blue sky
         h = rotate2d((500, 0), -camera.pitch).y
-        h = min(375, max(-375, h))
+        h = min(425, max(-375, h))
         pg.draw.rect(global_.screen, (50, 50, 150), pg.Rect(0, 0, 1500, h + 350))
         pg.draw.rect(global_.screen, (25, 25, 75), pg.Rect(0, h + 350, 1500, 25))
 
@@ -692,8 +721,8 @@ def main():
                 else:
                     point.hovered = False
 
-        for tri in global_.tris:
-            draw_tri(tri[0], tri[1], tri[2])
+        for t in global_.tris:
+            draw_tri(t)
 
         draw_fps()
 
@@ -712,15 +741,4 @@ def main():
 
 # Check if file is being run as main
 if __name__ == "__main__":
-    #print(determinant([[3, 4], [9, -4]], 2))
-    x = matrix2d([
-        [1, 2], 
-        [5, 6],
-    ])
-    x.flip()
-    print(x.vals)
-    print(cross_product(
-        vec3d(3, 7, -2), 
-        vec3d(6, -1, 4)
-    ))
-    #main()
+    main()

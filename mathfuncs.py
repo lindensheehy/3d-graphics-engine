@@ -18,6 +18,16 @@ class line_equation:
 
 class my_math_functions:
     
+    def num_between(num: float, low: float, high: float, newlowm: float = 0, newhigh: float = 1) -> float:
+        '''
+        By default, returns a float between 1 and 0 representing how far towards the high end num is
+        newlow and newhigh can be changed to give a different range for the output
+        Returns None if num is not between low and high
+        '''
+        if num >= low and num <= high:
+            return (num - low) / (high - low)
+        return None
+
     def rollover(num: float, min: float = 0, max: float = 360) -> float:
         '''
         Changes angles so they are always within 0-360.  
@@ -36,24 +46,22 @@ class my_math_functions:
 
         return new_num
 
-    def in_angle(low: float, high: float, val: float) -> float:
+    def in_angle(low: float, high: float, num: float) -> float:
         '''
         Takes 3 angles as input ranging from 0-360, and returns a decimal representing how far towards high the val is. 
         Returns None if val is not between low and high
         (300, 60, 0) -> 0.5
         '''
         # Adjust degree values by increments of decrements of 360 so math can be done
-        if low > high and val > high:
+        if low > high and num > high:
             low -= 360
-            val -= 360
-        if low > high and val < low:
+            num -= 360
+        if low > high and num < low:
             high += 360
-            val += 360
+            num += 360
 
         # Return
-        if val >= low and val <= high:
-            return (val - low) / (high - low)
-        return None
+        return my_math_functions.num_between(num, low, high)
     
     def in_bounds(p: tuple, bounds: tuple) -> bool:
         '''
