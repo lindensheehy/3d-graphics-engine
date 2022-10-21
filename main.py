@@ -37,7 +37,21 @@ class vec3d:
         yield self.z
 
     def scale(self, factor: float):
+        '''
+        Scales a vector by a given factor, each component becomes 
+        '''
         return vec3d(self.x * factor, self.y * factor, self.z * factor)
+
+    def abs_scale(self, magnitude: float = 1):
+        '''
+        Returns a vecortsssss
+        By defualt, changes magnitude to 1
+        '''
+        return vec3d(
+            (self.x / self.magnitude) * magnitude, 
+            (self.y / self.magnitude) * magnitude, 
+            (self.z / self.magnitude) * magnitude
+        )
 
 class matrix2d:
     def __init__(self, vals):
@@ -165,13 +179,38 @@ class object:
 
 class tri:
     def __init__(self, p1: vec3d, p2: vec3d, p3: vec3d):
+
+        # Individual points making up the triangle
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
-        self.v12 = vec3d(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
-        self.v23 = vec3d(p2.x - p3.x, p2.y - p3.y, p2.z - p3.z)
-        self.v31 = vec3d(p3.x - p1.x, p3.y - p1.y, p3.z - p1.z)
+
+        # Vectors representing distance between points 1,2 ; 2,3 ; 3,1 respectively
+        self.v12 = vec3d(
+            p1.x - p2.x, 
+            p1.y - p2.y, 
+            p1.z - p2.z
+        )
+        self.v23 = vec3d(
+            p2.x - p3.x, 
+            p2.y - p3.y, 
+            p2.z - p3.z
+        )
+        self.v31 = vec3d(
+            p3.x - p1.x, 
+            p3.y - p1.y, 
+            p3.z - p1.z
+        )
+
+        # Normal of the Triangle, can be scaled by any factor including negative
         self.normal = cross_product(self.v12, self.v23)
+
+        # Center point of the triangle
+        self.center = vec3d(
+            (p1.x + p2.x + p3.x) / 3,
+            (p1.y + p2.y + p3.y) / 3,
+            (p1.z + p2.z + p3.z) / 3
+        )
 
 class mesh:
     pass
@@ -275,7 +314,7 @@ def rotate3d(point: tuple, angle: tuple, around: tuple = (0, 0, 0)) -> vec3d:
     if pitch != 0:
         p.z, p.y = tuple(rotate2d((p.z, p.y), pitch, (a.z, a.y)))
 
-    return vec3d(p.x, p.y, p.z)
+    return p
 
 def cross_product(v1: vec3d, v2: vec3d) -> vec3d:
     '''
