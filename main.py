@@ -1,44 +1,12 @@
-from audioop import cross
 import pygame as pg
 import numpy as np
 import math, time, json, random
+import geometry
 from mathfuncs import my_math_functions as m
+from geometry import Tri2, Tri3, Bounds2, Bounds3, Mesh
+from vectors import Vec2, Vec3
 
 # These classes are used to create variables with attributes. For example coordinates or angles
-class vec2d:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-    def __str__(self):
-        return f"x: {self.x}, y: {self.y}"
-
-    def __iter__(self):
-        yield self.x
-        yield self.y
-
-    def scale(self, factor):
-        self.x *= factor
-        self.y *= factor
-
-class vec3d:
-    def __init__(self, x: float, y: float, z: float):
-        self.x = x
-        self.y = y
-        self.z = z
-        self.magnitude = math.sqrt((x ** 2) + (y ** 2) + (z ** 2))
-
-    def __str__(self):
-        return f"x: {self.x}, y: {self.y}, z: {self.z}"
-
-    def __iter__(self):
-        yield self.x
-        yield self.y
-        yield self.z
-
-    def scale(self, factor: float):
-        return vec3d(self.x * factor, self.y * factor, self.z * factor)
-
 class matrix2d:
     def __init__(self, vals):
         '''
@@ -98,10 +66,9 @@ class matrix2d:
         # If the matrix is 2x2, the other way of computing determinant will give 0, so this is done instead
         if self.rx == 2:
             return (self.vals[0][0] * self.vals[1][1]) - (self.vals[0][1] * self.vals[1][0])
-            pass
 
         # Looks super complicated but really all this does is takes the products of numbers in diagonal lines
-        # The magority of the complication here is allowing this function to work for any size matrix
+        # The majority of the complication here is allowing this function to work for any size matrix
 
         total = 0
 
@@ -121,279 +88,96 @@ class matrix2d:
         
         return total
 
-class new_point:
-    def __init__(self, pos: vec3d):
-        self.pos = pos
-        self.hovered = False
-        global_.points.append(self)
-
-class rect_prism:
-    def __init__(self, pos: tuple, size: tuple):
-        '''
-        pos and size are both tuples wtih length 3
-        '''
-        self.posx = pos[0]
-        self.posy = pos[1]
-        self.posz = pos[2]
-        self.sizex = size[0]
-        self.sizey = size[1]
-        self.sizez = size[2]
-
 class object:
 
-    instances = []
+    instances = set()
 
-    def __init__(self, pos: tuple, mass: float):
+    def __init__(self, pos: Vec3, mesh: Mesh, mass: float = 0):
+        print(f"Object Created at {pos}")
+        object.instances.add(self)
+
+        self.mesh = mesh
         self.mass = mass
-        self.x = pos[0]
-        self.y = pos[1]
-        self.y = pos[2]
-        self.velocity = vec3d(0, 0, 0)
-        self.acceleration = vec3d(0, 0, 0)
+        self.pos = pos
+        self.velocity = Vec3(0, 0, 0)
+        self.acceleration = Vec3(0, 0, 0)
 
-    def do_frame():
-        for obj in object.instances:
-            obj.x += obj.velocity.x * global_.dt
-            obj.y += obj.velocity.y * global_.dt
-            obj.z += obj.velocity.z * global_.dt
+    def __del__(self):
+        print(f"Object Created at {self.pos}")
+        object.instances.remove(self)
 
-            obj.velocity.x += obj.acceleration.x * global_.dt
-            obj.velocity.y += obj.acceleration.y * global_.dt
-            obj.velocity.z += obj.acceleration.z * global_.dt
+    def do_frame(self):
+        self.pos.x += self.velocity.x * Global.dt
+        self.pos.y += self.velocity.y * Global.dt
+        self.pos.z += self.velocity.z * Global.dt
 
-            obj.velocity.y += global_.gravity * global_.dt
+        self.velocity.x += self.acceleration.x * Global.dt
+        self.velocity.y += self.acceleration.y * Global.dt
+        self.velocity.z += self.acceleration.z * Global.dt
 
-class tri:
-    def __init__(self, p1: vec3d, p2: vec3d, p3: vec3d):
-        self.p1 = p1
-        self.p2 = p2
-        self.p3 = p3
-        self.v12 = vec3d(p1.x - p2.x, p1.y - p2.y, p1.z - p2.z)
-        self.v23 = vec3d(p2.x - p3.x, p2.y - p3.y, p2.z - p3.z)
-        self.v31 = vec3d(p3.x - p1.x, p3.y - p1.y, p3.z - p1.z)
-        self.normal = cross_product(self.v12, self.v23)
-
-class mesh:
-    pass
+        self.velocity.y += Global.gravity * Global.dt
 
 # Classes containing variables which need to be avaliable throughout all functions
 # Using a classes instead of the global keyword to avoid cluttering the namespace
-class global_:
-    screen = None   # Surface representing the window open
-    dt = None   # Delta time. How much time has passed since the last frame
-    points = None   # Array of all points currently being drawn
-    print_keys = None   # Bool if keys pressed are printed to console or not
-    mouse_pos = None   # Current mouse pos
-    dmouse_pos = None   # Change in mouse pos since last frame
-    fps = None   # Contains a string of how many fps the display is running at
-    font = None   # Pygames font object, used to write text to screen
-    gravity = None   # Number representing the gravitational acceleration
-    abs_floor = None   # The lowest y value the player/camera can go to
-    tri_mode = None   # If true, the user can click 3 points to make a triangle
-    fly_mode = None   # If true, the player will not be affected by gravity and will fly
-
 class camera:
 
     movement_speed = 60
 
-    pos = vec3d(0, 0, 0)
-    vel = vec3d(0, 0, 0)
-    acc = vec3d(0, 0, 0)
+    pos = Vec3(0, 0, 0)
+    vel = Vec3(0, 0, 0)
+    acc = Vec3(0, 0, 0)
 
     yaw = 0   # Around y axis, on the xz plane
     pitch = 0   # Vertically, on the axis of yaw
     roll = 0   # Around z axis, on the yx plane
 
-    rotvec = vec3d(1, 0, 0)
+    rotvec = Vec3(1, 0, 0)
 
-    fov = vec2d(120, 90)
+    fov = Vec2(120, 90)
 
 class display:
 
     width = 1500
     height = 750
 
-    class bounds:
-        left = 360 - (camera.fov.x / 2)
-        right = (camera.fov.x / 2)
-        top = 360 - (camera.fov.y / 2)
-        bottom = (camera.fov.y / 2)
+    bounds = Bounds2(Vec2(0, 0), Vec2(1500, 750))
 
-    '''
-    def update_bounds():
-        display.bounds.left = rollover(camera.yaw - (camera.fov.x / 2))
-        display.bounds.right = rollover(camera.yaw + (camera.fov.x / 2))
-        display.bounds.top = rollover(camera.pitch - (camera.fov.y / 2))
-        display.bounds.bottom = rollover(camera.pitch + (camera.fov.y / 2))
-    '''
+class Global:
 
-# Math Functions
-def rotate2d(point: tuple, degrees: float, around: tuple = (0, 0)) -> vec2d:
-    '''
-    Returns (x, y) of a point rotated some number of degrees about another point. COUNTER CLOCKWISE
-    '''
+    pg.display.init()
+    pg.font.init()
+    screen = pg.display.set_mode((display.width, display.height))   # Surface representing the window open
+    font = pg.font.SysFont('arial', 15)   # Pygames font object, used to write text to screen
 
-    # Attempt to change tuple inputs to vec2d objects. Throws an error if this fails.
-    try:
-        if degrees == 0: return vec2d(point[0], point[1])
-        p = vec2d(float(point[0]), float(point[1]))
-        a = vec2d(float(around[0]), float(around[1]))
-    except:
-        raise Exception(f"\nrotate2d(point = {point}, degrees = {degrees}, around = {around})\nInvalid Arguments")
+    frame_time = time.time()   # Stores the time at the start of the frame. Used to find dt between frames
+    dt = None   # Delta time. How much time has passed since the last frame
+    frame_counter = 0   # A frame counter which only ever increments on each frame
 
-    # Relative (x, y) location to the "around point"
-    rel = vec2d(p.x - a.x, p.y - a.y)
+    timer = 0   # A timer to detect when 1 second has passed since the last fps update
+    frame_count = 0   # A count of how many frames have passed between fps updates
+    fps = font.render("0", False, (255, 255, 255))   # Contains a string of how many fps the display is running at
 
-    # Trig constants
-    sin = math.sin(math.radians(degrees))
-    cos = math.cos(math.radians(degrees))
+    mouse_pos = pg.mouse.get_pos()   # Current mouse pos
+    dmouse_pos = None   # Change in mouse pos since last frame
+    keys_down = []   # List of key ids which were pressed on the last frame
+    print_keys = False   # Bool if keys pressed are printed to console or not
 
-    # New components
-    p.x = (cos * rel.x) - (sin * rel.y) + a.x
-    p.y = (cos * rel.y) + (sin * rel.x) + a.y
-
-    return p
-
-def rotate3d(point: tuple, angle: tuple, around: tuple = (0, 0, 0)) -> vec3d:
-    '''
-    Returns the (x, y, z) of a point rotated by any yaw and pitch around another point
-    '''
-
-    try:
-        p = vec3d(float(point[0]), float(point[1]), float(point[2]))
-        a = vec3d(float(around[0]), float(around[1]), float(around[2]))
-        yaw, pitch = float(angle[0]), float(angle[1])
-    except:
-        raise Exception(f"\nrotate2d(point = {point}, angle = {angle}, around = {around})\nInvalid Arguments")
-
-    # If yaw is not 0, rotate point about the y axis
-    if yaw != 0:
-        p.x, p.z = tuple(rotate2d((p.x, p.z), yaw, (a.x, a.z)))
-
-    # If pitch is not 0, rotate point about the x axis
-    # Because yaw rotation is done first, camera pitch always lines up with rotation around the x axis
-    if pitch != 0:
-        p.z, p.y = tuple(rotate2d((p.z, p.y), pitch, (a.z, a.y)))
-
-    return vec3d(p.x, p.y, p.z)
-
-def cross_product(v1: vec3d, v2: vec3d) -> vec3d:
-    '''
-    Returns a 3d vector of the cross product between v1 and v2
-    In other words a vector perpendicular to v1 and v2
-    '''
-    x = (v1.y * v2.z) - (v1.z * v2.y)
-    y = (v1.z * v2.x) - (v1.x * v2.z)
-    z = (v1.x * v2.y) - (v1.y * v2.x)
-    return vec3d(x, y, z)
-
-def dot_product(v1: vec3d, v2: vec3d) -> vec3d:
-    '''
-    Returns the dot product of v1 and v2
-    Used to find angle between vectors
-    '''
-    return (v1.x * v2.x) + (v1.y * v2.y) + (v1.z * v2.z)
-
-def angle_between(v1: vec3d, v2: vec3d) -> vec3d:
-    '''
-    Returns the angle between 2 vectors in 3d space (along the plane they share)
-    '''
-    return math.degrees(math.acos((dot_product(v1, v2)) / (v1.magnitude * v2.magnitude)))
-
-def points_to_mesh_2d(points: tuple) -> tuple:
+    objects = []   # List of all objects currently which exist
     
-    # Create a list of the angle each point makes with the starting point
-    start_point = points[0]
-    angles = []
-    for p in points[1:]:
-        angles.append([m.get_angle(start_point, p), p])
-    angles.sort()
+    tri_mode = False   # If true, the user can click 3 points to make a triangle
+    fly_mode = True   # If true, the player will not be affected by gravity and will fly
 
-    mesh = []
-
-    for i in range(len(angles) - 1):
-        p1 = angles[i][1]
-        p2 = angles[i + 1][1]
-
-        mesh.append((start_point, p1, p2))
-
-    return mesh
-
-def tri_facing_cam(tri: tri) -> float:
-    angle = min(angle_between(camera.rotvec, tri.normal), angle_between(camera.rotvec, tri.normal.scale(-1)))
-    return m.num_between(angle, 0, 180)
+    gravity = -500   # Number representing the gravitational acceleration
+    abs_floor = 0   # The lowest y value the player/camera can go to
 
 # Setup and every frame update functions
-def init_vars():
-    '''
-    Sets all needed global variables. Called on startup.
-    Only made into its own method for tidiness.
-    '''
-
-    # Should the key id of key presses be printed to the console
-    global_.print_keys = False
-    global_.keys_down = []
-
-    # Boolean if user is defining a triangle or not. Changes/disables some controls.
-    global_.tri_mode = False
-
-    # Boolean value for if the player can fly or not. If True, gravity wont affect the player
-    global_.fly_mode = True
-
-    # Pygame surface of the window
-    global_.screen = pg.display.set_mode((display.width, display.height))
-
-    # Set up for pygames fonts to write text to the screen
-    pg.font.init()
-    global_.font = pg.font.SysFont('arial', 15)
-
-    # Array of all points to be drawn
-    global_.points = []
-    points = new_cube((100, 0, 100), 20)
-    #points = [new_point(vec3d(100, 100, 100))]
-    '''
-    for i in range(-30, 30):
-        i *= 20
-        for ii in range(-30, 30):
-            ii *= 20
-            #global_.points.append(
-            new_point(vec3d(i, ii, 200))
-    '''
-
-    # Array of all triangles to be drawn
-    global_.tris = []
-
-    global_.screen_dots = []
-
-    # Time related variables. Used for both timing and counting frames
-    global_.time_one = time.time()
-
-    # Variables for calculating and drawing fps counter
-    global_.timer = 0
-    global_.frame_count = 0
-    global_.fps = global_.font.render("0", False, (255, 255, 255))
-
-    # A global counter that only ever increments every frame. Used to have something happen once or every x frames.
-    global_.frame_counter = 0
-
-    # Mouse position variable and 
-    global_.mouse_pos = pg.mouse.get_pos()
-
-    # Set the global gravitational acceleration
-    # Gravity affects the y velocity of objects
-    global_.gravity = -500
-
-    global_.abs_floor = 0
-
-    return
-
 def update_dt():
     '''
     Gets new dt (delta time) and sets time_one to current time for next call
     '''
-    global_.dt = time.time() - global_.time_one
-    global_.time_one = time.time()
-    global_.timer += global_.dt
+    Global.dt = time.time() - Global.frame_time
+    Global.frame_time = time.time()
+    Global.timer += Global.dt
 
     return
 
@@ -402,11 +186,11 @@ def update_mouse_pos():
     Updates both mouse_pos and dmouse_pos (delta mouse_pos)
     '''
     new_mouse_pos = pg.mouse.get_pos()
-    global_.dmouse_pos = (
-        global_.mouse_pos[0] - new_mouse_pos[0], 
-        global_.mouse_pos[1] - new_mouse_pos[1]
+    Global.dmouse_pos = (
+        Global.mouse_pos[0] - new_mouse_pos[0], 
+        Global.mouse_pos[1] - new_mouse_pos[1]
     )
-    global_.mouse_pos = new_mouse_pos
+    Global.mouse_pos = new_mouse_pos
 
     return
 
@@ -414,16 +198,30 @@ def draw_fps():
     '''
     Draws the fps counter to the top left of the screen
     '''
-    global_.font = pg.font.SysFont('arial', 15)
 
-    if global_.timer > 1:
-        global_.fps = global_.font.render(str(global_.frame_count), False, (255, 255, 255))
-        global_.timer = 0
-        global_.frame_count = 0
+    if Global.timer > 1:
+        Global.fps = Global.font.render(str(Global.frame_count), False, (255, 255, 255))
+        Global.timer = 0
+        Global.frame_count = 0
     else:
-        global_.frame_count += 1
+        Global.frame_count += 1
 
-    global_.screen.blit(global_.fps, (10, 10))
+    Global.screen.blit(Global.fps, (10, 10))
+
+    return
+
+def draw_sky():
+    '''
+    Draws the blue background to the window to give the player an idea of thier camera pitch
+    '''
+
+    # Get sky height
+    h = Vec2(500, 0).rotate(-camera.pitch).y
+    h = min(425, max(-375, h))
+
+    # Draw sky
+    pg.draw.rect(Global.screen, (50, 50, 150), pg.Rect(0, 0, 1500, h + 350))
+    pg.draw.rect(Global.screen, (25, 25, 75), pg.Rect(0, h + 350, 1500, 25))
 
     return
 
@@ -432,18 +230,26 @@ def do_physics():
     Makes all objects do what they need to do for the frame
     Only does velocity, acceleration etc.
     '''
-    if not global_.fly_mode:
-        camera.vel.y += global_.gravity * global_.dt
-        camera.pos.y += camera.vel.y * global_.dt
-        if camera.pos.y < global_.abs_floor:
+    if not Global.fly_mode:
+        camera.vel.y += Global.gravity * Global.dt
+        camera.pos.y += camera.vel.y * Global.dt
+        if camera.pos.y < Global.abs_floor:
             camera.vel.y = 0
-            camera.pos.y = global_.abs_floor
+            camera.pos.y = Global.abs_floor
+
+def draw_objects():
+    for item in object.instances:
+        draw_mesh(item.mesh)
+    return
 
 # All the other stuff
-def get_player_input():   # Returns array of keys pressed
+def get_player_input() -> list:
+    '''
+    Returns array of keys pressed as ints of the key ids
+    '''
 
     keys_were_down = []
-    for i in global_.keys_down:
+    for i in Global.keys_down:
         keys_were_down.append(i[0])
 
     # Array to hold all input events as ints
@@ -468,27 +274,31 @@ def get_player_input():   # Returns array of keys pressed
             keys.append([key[0], key[0] in keys_were_down])
     
     # Optionally prints the keys down, used to get key ids
-    if global_.print_keys:
+    if Global.print_keys:
         print(keys)
 
     # This returns an array of all the keys pressed as their numerical id, returns [] if no keys pressed.
     return keys
 
-def handle_input():   # Do all necessary actions based on played input
+def handle_input():
+    '''
+    Do all necessary actions based on played input
+    '''
 
-    global_.keys_down = get_player_input()
+    Global.keys_down = get_player_input()
 
-    controls = json.load(open("controls.json", 'r'))
+    with open("controls.json", 'r') as file:
+        controls = json.load(file)
 
-    distance_moved = camera.movement_speed * global_.dt
+    distance_moved = camera.movement_speed * Global.dt
 
-    for key in global_.keys_down:
+    for key in Global.keys_down:
 
         # Movement
-        cam_mov_vector = vec2d(0, 0)
+        cam_mov_vector = Vec2(0, 0)
 
         # Up and down movement
-        if global_.fly_mode:
+        if Global.fly_mode:
             if key[0] == controls["up"]:
                 camera.pos.y += distance_moved
             if key[0] == controls["down"]:
@@ -507,39 +317,29 @@ def handle_input():   # Do all necessary actions based on played input
             cam_mov_vector.y -= distance_moved
 
         # Change (x, z) movement vector based on camera yaw rotation so the forward key always goes forwards
-        cam_mov = rotate2d(tuple(cam_mov_vector), -camera.yaw)
+        cam_mov = cam_mov_vector
+        cam_mov.rotate(-camera.yaw)
         camera.pos.x += cam_mov.x
         camera.pos.z += cam_mov.y
 
         # Other
         if key[0] == controls["toggle_tri_mode"] and not key[1]:
-            global_.tri_mode = not global_.tri_mode
+            Global.tri_mode = not Global.tri_mode
 
         if key[0] == controls["toggle_fly_mode"] and not key[1]:
-            global_.fly_mode = not global_.fly_mode
-
-    if global_.tri_mode:
-
-        global_.mouse_left_down = pg.mouse.get_pressed()[0]
-
-        if global_.mouse_left_down and not global_.mouse_left_was_down:
-            create_tri_from_ui()
-            global_.mouse_left_was_down = True
-        elif not global_.mouse_left_down:
-            global_.mouse_left_was_down = False
-        return
+            Global.fly_mode = not Global.fly_mode
     
-    global_.current_tri = []
+    Global.current_tri = []
     
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
-        if global_.dmouse_pos[0] != 0:
-            camera.yaw = m.rollover(camera.yaw - (global_.dmouse_pos[0] / 10))
-        if global_.dmouse_pos[1] != 0:
-            camera.pitch = m.rollover(camera.pitch - (global_.dmouse_pos[1] / 10))
-        global_.mouse_left_was_down = True
+        if Global.dmouse_pos[0] != 0:
+            camera.yaw = m.rollover(camera.yaw - (Global.dmouse_pos[0] / 10))
+        if Global.dmouse_pos[1] != 0:
+            camera.pitch = m.rollover(camera.pitch - (Global.dmouse_pos[1] / 10))
+        Global.mouse_left_was_down = True
 
-    camera.rotvec = rotate3d((1, 0, 0), (camera.yaw, camera.pitch))
+    camera.rotvec = Vec3(1, 0, 0).rotate(camera.yaw, camera.pitch)
 
     # Change camera pitch to be in the range 270, 90
     if camera.pitch > 90 and camera.pitch <= 180:
@@ -549,29 +349,18 @@ def handle_input():   # Do all necessary actions based on played input
 
     return
 
-def new_cube(pos, size) -> None:   # Returns array of instances of new_point
+def get_screen_pos(point: Vec3):
+    '''
+    Returns a the location on the screen of a point in 3d space. Returns None if point is not in fov
+    '''
 
-    # Set up all possible (x, y, z) values
-    edgesx = [pos[0] - size, pos[0] + size]
-    edgesy = [pos[1] - size, pos[1] + size]
-    edgesz = [pos[2] - size, pos[2] + size]
-
-    # Loop through all (x, y, z) and append them to a list as instances of new_point
-    for x in edgesx:
-        for y in edgesy:
-            for z in edgesz:
-                new_point(vec3d(x, y, z))
-
-    return None
-
-def get_screen_pos(point: vec3d, restrict_to_window = False):   # Returns a the location on the screen of a point in 3d space. Returns None if point is not in fov
-
-    screen_pos = [0, 0]
+    screen_pos = Vec2(0, 0)
 
     # Get the points location relative to the x rotation of the camera
-    relative = rotate3d(tuple(point), (camera.yaw, camera.pitch), tuple(camera.pos))
+    relative = point
+    relative.rotate(camera.yaw, camera.pitch, camera.pos)
 
-    if global_.tri_mode:
+    if Global.tri_mode:
         #relative.z -= (distance((camera.pos.x, camera.pos.y), (relative.x, relative.y)) / 2)
         pass
 
@@ -589,106 +378,67 @@ def get_screen_pos(point: vec3d, restrict_to_window = False):   # Returns a the 
     angley = m.get_angle((dy, dist))
     angley = round(360 - angley, 2)
 
-    # Gets a float from 0-1 indicating how far from the left of the window the point should be drawn
-    in_range_x = m.in_angle(display.bounds.left, display.bounds.right, anglex)
-    in_range_y = m.in_angle(display.bounds.top, display.bounds.bottom, angley)
+    # Gets a value 0-1 for how far the point is towards the top left in x and y directions then translates that to a screen coordinate
+    in_range_x = m.in_angle(-180, 180, m.rollover(anglex + 180) - 180)
+    in_range_y = m.in_angle(-180, 180, m.rollover(angley + 180) - 180)
 
-    # Get where the point would be if the window was wide enough to show it, 
-    # Only do this if restrict_to_window was false AND the point is not already on the screen
-    if not restrict_to_window and (in_range_x == None or in_range_y == None):
-
-        in_range_x = m.in_angle(-180, 180, m.rollover(anglex + 180) - 180)
-        in_range_y = m.in_angle(-180, 180, m.rollover(angley + 180) - 180)
-
-        screen_pos[0] = in_range_x * (display.width * 3) - display.width
-        screen_pos[1] = in_range_y * (display.height * 4) - (display.height * (3 / 2))
-
-        return screen_pos
-
-    # Give back the points (x, y) location in the window if it is in both the x and y fov of the camera
-    elif in_range_x != None and in_range_y != None:
-        screen_pos[0] = in_range_x * display.width
-        screen_pos[1] = in_range_y * display.height
-        return screen_pos
-    
-    return None
-
-def get_dot(point, draw = True) -> tuple:   # Gets and returns screen position of a point. optionally draws the point as a circle
-
-    screen_pos = get_screen_pos(point.pos)
-
-    if screen_pos == None:
-        return
-
-    if draw:
-
-        if point.hovered:
-            r = 4
-        else:
-            r = 2
-
-        # Draw dot
-        '''
-        if global_.tri_mode:
-            p = vec2d(screen_pos[0], screen_pos[1])
-            pg.draw.circle(global_.screen, (255, 255, 255), p.transform(), r)
-        else:
-            pg.draw.circle(global_.screen, (255, 255, 255), screen_pos, r)
-        '''
-
-        pg.draw.circle(global_.screen, (255, 255, 255), screen_pos, r)
-
-        # Write any label associated with the point on top of it
-        #global font
-        #font = pg.font.SysFont('arial', 14)
-        #point_label = font.render(point.label, False, (255, 255, 255))
-        #screen.blit(point_label, (screen_pos[0] - 5, screen_pos[1] - 20))
+    screen_pos.x = in_range_x * (display.width * 3) - display.width
+    screen_pos.y = in_range_y * (display.height * 4) - (display.height * (3 / 2))
 
     return screen_pos
 
-def draw_tri(tri_: tri) -> bool:
+def draw_tri(tri: Tri3) -> bool: 
+    '''
+    Draws a triangle to the screen.
+    '''
 
-    if get_screen_pos(tri_.p1) == None and get_screen_pos(tri_.p2) == None and get_screen_pos(tri_.p3) == None:
-        return None
+    # Project all 3 veticies to 2d space
+    pos1 = get_screen_pos(tri.p1)
+    pos2 = get_screen_pos(tri.p2)
+    pos3 = get_screen_pos(tri.p3)
 
-    pos1 = get_screen_pos(tri_.p1, False)
-    pos2 = get_screen_pos(tri_.p2, False)
-    pos3 = get_screen_pos(tri_.p3, False)
+    if None in [pos1, pos2, pos3]:
+        return False
 
-    poly = m.restrict_tri((pos1, pos2, pos3))
-    poly_mesh = points_to_mesh_2d(poly)
-    
-    for tri in poly_mesh:
-        shade = tri_facing_cam(tri_)
-        pg.draw.polygon(global_.screen, (shade * 255, shade * 255, shade * 255), tri, width=0)
+    bounds = tuple(display.bounds)
+
+    # If all 3 points are out of fov return None
+    if not ((pos1.in_bounds(bounds)) or (pos2.in_bounds(bounds)) or (pos3.in_bounds(bounds))):
+        return False
+
+    # Run the restrict_tri function to bound the triangle to the window borders. making a new polygon which fits to the window if neccesary
+    verticies = geometry.restrict_tri(Tri2(pos1, pos2, pos3))
+    poly = []
+    for i in verticies:
+        poly.append(tuple(i))
+        
+    # Get a shading value and then draw the traingle in a respective lighting
+    shade = tri.facing_vec(camera.rotvec)
+    pg.draw.polygon(Global.screen, (shade * 255, shade * 255, shade * 255), poly, width=0)
 
     return True
 
-def create_tri_from_ui():
+def draw_mesh(mesh: Mesh) -> int:
     '''
-    Allows user to create triangles in the ui.
-    Much easier than manually defining the tris.
+    Takes a mesh (group of triangles) and draws all the triangles to the screen
+    Returns number of triangles drawn
     '''
-    for p in global_.points:
-        if p.hovered == True:
-            #p.label = "p" + str(len(current_tri) + 1)
-            global_.current_tri.append(p)
-            print(p.pos)
-            if len(global_.current_tri) == 3:
-                global_.tris.append(tri(
-                    global_.current_tri[0].pos, 
-                    global_.current_tri[1].pos, 
-                    global_.current_tri[2].pos
-                ))
-                global_.tri_mode = False
 
-    return
+    tris_drawn = 0
 
-# The big main function
+    for tri in mesh.tris:
+        draw_tri(tri)
+
+    return tris_drawn
+
 def main():
+    '''
+    This function contains the entire program. The primary code here is the loop that runs while the GUI window is open
+    '''
 
-    # Fill and load all global variables
-    init_vars()
+    #obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
+    obj = object(Vec3(100, 100, 100), Mesh())
+    obj.mesh.add(Tri3(Vec3(0, 0, 0), Vec3(100, 100, 100), Vec3(100, 100, 0)))
 
     running = True
 
@@ -696,41 +446,20 @@ def main():
         
         events = pg.event.get()
 
-        #print(global_.fly_mode)
-
         update_dt()
         update_mouse_pos()
-
         handle_input()
 
         do_physics()
 
-        global_.screen.fill((0, 0, 0))
-
-        # Draw the blue sky
-        h = rotate2d((500, 0), -camera.pitch).y
-        h = min(425, max(-375, h))
-        pg.draw.rect(global_.screen, (50, 50, 150), pg.Rect(0, 0, 1500, h + 350))
-        pg.draw.rect(global_.screen, (25, 25, 75), pg.Rect(0, h + 350, 1500, 25))
-
-        for point in global_.points:
-            point_pos = get_dot(point, True)
-            if point_pos != None:
-                if m.distance(tuple(point_pos), global_.mouse_pos) < 5:
-                    point.hovered = True
-                else:
-                    point.hovered = False
-
-        for t in global_.tris:
-            draw_tri(t)
-
+        Global.screen.fill((0, 0, 0))
+        draw_sky()
+        draw_objects()
         draw_fps()
 
         pg.display.update()
 
-        #print(str(camera.yaw) + ", " + str(camera.pitch))
-
-        global_.frame_counter += 1
+        Global.frame_counter += 1
 
         # Stop running if tab is closed
         for event in events:
