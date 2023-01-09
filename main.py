@@ -164,9 +164,9 @@ class Global:
 
     objects = []   # List of all objects currently which exist
     
-    tri_mode = False   # If true, the user can click 3 points to make a triangle
     fly_mode = True   # If true, the player will not be affected by gravity and will fly
 
+    lighting_vec = Vec3(-2, -4, -1)
     gravity = -500   # Number representing the gravitational acceleration
     abs_floor = 0   # The lowest y value the player/camera can go to
 
@@ -323,13 +323,8 @@ def handle_input():
         camera.pos.z += cam_mov.y
 
         # Other
-        if key[0] == controls["toggle_tri_mode"] and not key[1]:
-            Global.tri_mode = not Global.tri_mode
-
         if key[0] == controls["toggle_fly_mode"] and not key[1]:
             Global.fly_mode = not Global.fly_mode
-    
-    Global.current_tri = []
     
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
@@ -357,12 +352,8 @@ def get_screen_pos(point: Vec3):
     screen_pos = Vec2(0, 0)
 
     # Get the points location relative to the x rotation of the camera
-    relative = point
+    relative = point.copy()
     relative.rotate(camera.yaw, camera.pitch, camera.pos)
-
-    if Global.tri_mode:
-        #relative.z -= (distance((camera.pos.x, camera.pos.y), (relative.x, relative.y)) / 2)
-        pass
 
     # Check if point is behind camera
     if relative.z < camera.pos.z:
@@ -413,7 +404,7 @@ def draw_tri(tri: Tri3) -> bool:
         poly.append(tuple(i))
         
     # Get a shading value and then draw the traingle in a respective lighting
-    shade = tri.facing_vec(camera.rotvec)
+    shade = tri.facing_vec(Global.lighting_vec)
     pg.draw.polygon(Global.screen, (shade * 255, shade * 255, shade * 255), poly, width=0)
 
     return True
@@ -424,10 +415,17 @@ def draw_mesh(mesh: Mesh) -> int:
     Returns number of triangles drawn
     '''
 
+    tri_list = list()
+
+    for index, tri in enumerate(mesh.tris):
+        tri_list.append([camera.pos.distance_to(tri.center()), index, tri])
+    tri_list.sort(reverse = True)
+
     tris_drawn = 0
 
-    for tri in mesh.tris:
-        draw_tri(tri)
+    for i in tri_list:
+        draw_tri(i[2])
+        tris_drawn += 1
 
     return tris_drawn
 
@@ -436,9 +434,9 @@ def main():
     This function contains the entire program. The primary code here is the loop that runs while the GUI window is open
     '''
 
-    #obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
-    obj = object(Vec3(100, 100, 100), Mesh())
-    obj.mesh.add(Tri3(Vec3(0, 0, 0), Vec3(100, 100, 100), Vec3(100, 100, 0)))
+    obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
+    #obj = object(Vec3(100, 100, 100), Mesh())
+    #obj.mesh.add(Tri3(Vec3(0, 0, 0), Vec3(100, 100, 100), Vec3(100, 100, 0)))
 
     running = True
 

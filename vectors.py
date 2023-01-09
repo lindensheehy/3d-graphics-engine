@@ -70,6 +70,12 @@ class Vec2:
         yield self.y
 
     # Class functions
+    def copy(self):
+        '''
+        Returns a vector with the same components in a new memory location
+        '''
+        return Vec2(self.x, self.y)
+
     def scale(self, factor):
         '''
         (Vec2, float) -> Vec2
@@ -78,6 +84,12 @@ class Vec2:
         self.x *= factor
         self.y *= factor
         return self
+
+    def distance_to(self, other):
+        '''
+        Returns the distance between one position and another
+        '''
+        return math.sqrt(((self.x - other.x) ** 2) + ((self.y - other.y) ** 2))
 
     def in_bounds(self, bounds: tuple) -> bool:
         '''
@@ -204,6 +216,12 @@ class Vec3:
         yield self.z
 
     # Class functions
+    def copy(self):
+        '''
+        Returns a vector with the same components in a new memory location
+        '''
+        return Vec3(self.x, self.y, self.z)
+
     def scale(self, factor: float):
         '''
         (Vec3, float) -> Vec3
@@ -213,6 +231,12 @@ class Vec3:
         self.y *= factor
         self.z *= factor
         return self
+
+    def distance_to(self, other):
+        '''
+        Returns the distance between one position and another
+        '''
+        return math.sqrt(((self.x - other.x) ** 2) + ((self.y - other.y) ** 2) + ((self.z - other.z) ** 2))
 
     def in_bounds(self, bounds: tuple) -> bool:
         '''

@@ -82,6 +82,15 @@ class Tri3:
         yield self.p2
         yield self.p3
 
+    def center(self):
+        '''
+        Returns the center of the triangle as a Vec3
+        '''
+        x = (self.p1.x + self.p1.x + self.p1.x) / 3
+        y = (self.p1.y + self.p1.y + self.p1.y) / 3
+        z = (self.p1.z + self.p1.z + self.p1.z) / 3
+        return Vec3(x, y, z)
+
     def facing_vec(self, vec: Vec3 = Vec3(0, 1, 0)):
         '''
         Returns a float between 1 and 0 representing how similar the direction the triangles normal vector is to a given vector
@@ -151,66 +160,63 @@ def restrict_tri(tri: Tri2, bounds: Bounds2 = Bounds2(Vec2(0, 0), Vec2(1500, 750
         print(tri)
         raise Exception("One of the points in the triangle was None")
 
-    verticies = set()
-    poly = []
+    verticies = list()
+    poly = list()
 
     # Checks all points in the triangle and finds the verticies of the shape that should be visible on the screen
-    for p in tri:
+    points = tuple(tri)
+
+    for index, point in enumerate(points):
 
         out = False
-        other_points = set(tri)
-        other_points.remove(p)
 
         # Handles points beyond the left of the screen
-        if p.x < bounds.low.x:
+        if point.x < bounds.low.x:
             out = True
-            for other in other_points:
+            for other in [points[(index + 2) % 3], points[(index + 1) % 3]]:
                 if other.x < bounds.low.x:
                     continue
-                place = m.num_between(bounds.low.x, p.x, other.x)
-                newy = (p.y - (place * (p.y - other.y)))
+                place = m.num_between(bounds.low.x, point.x, other.x)
+                newy = (point.y - (place * (point.y - other.y)))
                 newy = max(0, min(750, newy))
-                verticies.add(Vec2(bounds.low.x, newy))
+                verticies.append(Vec2(bounds.low.x, newy))
 
         # Handles points beyond the right of the screen
-        elif p.x > bounds.high.x:
+        elif point.x > bounds.high.x:
             out = True
-            for other in other_points:
+            for other in [points[(index + 2) % 3], points[(index + 1) % 3]]:
                 if other.x > bounds.high.x:
                     continue
-                place = m.num_between(bounds.high.x, other.x, p.x)
-                newy = (p.y - ((1 - place) * (p.y - other.y)))
+                place = m.num_between(bounds.high.x, other.x, point.x)
+                newy = (point.y - ((1 - place) * (point.y - other.y)))
                 newy = max(0, min(750, newy))
-                verticies.add(Vec2(bounds.high.x, newy))
+                verticies.append(Vec2(bounds.high.x, newy))
 
 
         # Handles points beyond the bottom of the screen
-        if p.y < bounds.low.y:
+        if point.y < bounds.low.y:
             out = True
-            for other in other_points:
+            for other in [points[(index + 2) % 3], points[(index + 1) % 3]]:
                 if other.y < bounds.low.y:
                     continue
-                place = m.num_between(bounds.low.y, p.y, other.y)
-                newx = (p.x - (place * (p.x - other.x)))
+                place = m.num_between(bounds.low.y, point.y, other.y)
+                newx = (point.x - (place * (point.x - other.x)))
                 newx = max(0, min(1500, newx))
-                verticies.add(Vec2(newx, bounds.low.y))
+                verticies.append(Vec2(newx, bounds.low.y))
 
         # Handles points beyond the top of the screen
-        elif p.y > bounds.high.y:
+        elif point.y > bounds.high.y:
             out = True
-            for other in other_points:
+            for other in [points[(index + 2) % 3], points[(index + 1) % 3]]:
                 if other.y > bounds.high.y:
                     continue
-                place = m.num_between(bounds.high.y, other.y, p.y)
-                newx = (p.x - ((1 - place) * (p.x - other.x)))
+                place = m.num_between(bounds.high.y, other.y, point.y)
+                newx = (point.x - ((1 - place) * (point.x - other.x)))
                 newx = max(0, min(1500, newx))
-                verticies.add(Vec2(newx, bounds.high.y))
+                verticies.append(Vec2(newx, bounds.high.y))
 
         if not out:
-            verticies.add(p)
-
-    # Ensures verticies are in the proper order so they are shown as a closed shape
-    
+            verticies.append(point)
 
     return tuple(verticies)
 
