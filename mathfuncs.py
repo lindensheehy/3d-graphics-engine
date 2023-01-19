@@ -1,18 +1,6 @@
 import math
 
 # These are all the raw number manipulation functions
-
-class line_equation:
-    def __init__(self, dx: float = 0, dy: float = 0, ox: float = 0, oy: float = 0):
-        self.dx = dx
-        self.dy = dy
-        self.ox = ox
-        self.oy = oy
-        try:
-            self.m = dy / dx
-        except ZeroDivisionError:
-            self.m = None
-
 class my_math_functions:
     
     def num_between(num: float, low: float, high: float) -> float:

@@ -131,7 +131,7 @@ class camera:
     pitch = 0   # Vertically, on the axis of yaw
     roll = 0   # Around z axis, on the yx plane
 
-    rotvec = Vec3(1, 0, 0)
+    rotvec = Vec3(0, 0,  1)
 
     fov = Vec2(120, 90)
 
@@ -324,6 +324,7 @@ def handle_input():
 
         # Other
         if key[0] == controls["toggle_fly_mode"] and not key[1]:
+            print(camera.rotvec)
             Global.fly_mode = not Global.fly_mode
     
     # Mouse Movement
@@ -383,6 +384,9 @@ def draw_tri(tri: Tri3) -> bool:
     Draws a triangle to the screen.
     '''
 
+    if not tri.is_facing(camera.rotvec):
+        return False
+
     # Project all 3 veticies to 2d space
     pos1 = get_screen_pos(tri.p1)
     pos2 = get_screen_pos(tri.p2)
@@ -435,8 +439,6 @@ def main():
     '''
 
     obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
-    #obj = object(Vec3(100, 100, 100), Mesh())
-    #obj.mesh.add(Tri3(Vec3(0, 0, 0), Vec3(100, 100, 100), Vec3(100, 100, 0)))
 
     running = True
 

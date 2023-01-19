@@ -59,13 +59,16 @@ class Tri3:
     '''
     Class used for representing triangles as sets of 3 points in 3d space
     '''
-    def __init__(self, p1: Vec3, p2: Vec3, p3: Vec3):
+    def __init__(self, p1: Vec3, p2: Vec3, p3: Vec3, normal: Vec3 = None):
         self.p1 = p1
         self.p2 = p2
         self.p3 = p3
         v1 = Vec3(self.p1.x - self.p2.x, self.p1.y - self.p2.y, self.p1.z - self.p2.z)
         v2 = Vec3(self.p1.x - self.p3.x, self.p1.y - self.p3.y, self.p1.z - self.p3.z)
-        self.normal = v1.cross_product(v2)
+        if normal == None:
+            self.normal = v1.cross_product(v2)
+        else:
+            self.normal = normal
 
     def __repr__(self) -> str:
         '''
@@ -95,8 +98,12 @@ class Tri3:
         '''
         Returns a float between 1 and 0 representing how similar the direction the triangles normal vector is to a given vector
         '''
-        angle = min(vec.angle_to(self.normal), vec.angle_to(self.normal.scale(-1)))
+        normal = self.normal.copy()
+        angle = min(vec.angle_to(normal), vec.angle_to(normal.scale(-1)))
         return m.num_between(angle, 0, 180)
+
+    def is_facing(self, vec: Vec3 = Vec3(0, 1, 0)) -> bool:
+        return vec.angle_to(self.normal) >= 90
 
 class Mesh:
     def __init__(self):
@@ -113,40 +120,46 @@ def rect_prism(size: Vec3, pos: Vec3 = Vec3(0, 0, 0)) -> Mesh:
 
     ret = Mesh()
 
-    for i in [pos.x, size.x + pos.x]:
+    for i, normal in [[pos.x, size.x], [size.x + pos.x, -size.x]]:
         ret.add(Tri3(
             Vec3(i, pos.y, pos.z), 
             Vec3(i, pos.y, pos.z + size.z), 
-            Vec3(i, pos.y + size.y, pos.z)
+            Vec3(i, pos.y + size.y, pos.z),
+            Vec3(normal, 0, 0)
         ))
         ret.add(Tri3(
             Vec3(i, pos.y + size.y, pos.z + size.z), 
             Vec3(i, pos.y, pos.z + size.z), 
-            Vec3(i, pos.y + size.y, pos.z)
+            Vec3(i, pos.y + size.y, pos.z),
+            Vec3(normal, 0, 0)
         ))
 
-    for i in [pos.y, size.y + pos.y]:
+    for i, normal in [[pos.y, size.y], [size.y + pos.y, -size.y]]:
         ret.add(Tri3(
-            Vec3(pos.x, i, pos.z), 
-            Vec3(pos.x, i, pos.z + size.z), 
-            Vec3(pos.x + size.x, i, pos.z)
+            Vec3(pos.x, i, pos.z),
+            Vec3(pos.x, i, pos.z + size.z),
+            Vec3(pos.x + size.x, i, pos.z),
+            Vec3(0, normal, 0)
         ))
         ret.add(Tri3(
             Vec3(pos.x + size.x, i, pos.z + size.z), 
             Vec3(pos.x, i, pos.z + size.z), 
-            Vec3(pos.x + size.x, i, pos.z)
+            Vec3(pos.x + size.x, i, pos.z),
+            Vec3(0, normal, 0)
         ))
 
-    for i in [pos.z, size.z + pos.z]:
+    for i, normal in [[pos.z, size.z], [size.z + pos.z, -size.z]]:
         ret.add(Tri3(
             Vec3(pos.x, pos.y, i), 
             Vec3(pos.x + size.x, pos.y, i), 
-            Vec3(pos.x, pos.y + size.y, i)
+            Vec3(pos.x, pos.y + size.y, i),
+            Vec3(0, 0, normal)
         ))
         ret.add(Tri3(
             Vec3(pos.x + size.x, pos.y + size.y, i), 
             Vec3(pos.x + size.x, pos.y, i), 
-            Vec3(pos.x, pos.y + size.y, i)
+            Vec3(pos.x, pos.y + size.y, i),
+            Vec3(0, 0, normal)
         ))
 
     return ret
