@@ -120,7 +120,7 @@ def rect_prism(size: Vec3, pos: Vec3 = Vec3(0, 0, 0)) -> Mesh:
 
     ret = Mesh()
 
-    for i, normal in [[pos.x, size.x], [size.x + pos.x, -size.x]]:
+    for i, normal in [[pos.x,  -size.x], [size.x + pos.x, size.x]]:
         ret.add(Tri3(
             Vec3(i, pos.y, pos.z), 
             Vec3(i, pos.y, pos.z + size.z), 
@@ -134,7 +134,7 @@ def rect_prism(size: Vec3, pos: Vec3 = Vec3(0, 0, 0)) -> Mesh:
             Vec3(normal, 0, 0)
         ))
 
-    for i, normal in [[pos.y, size.y], [size.y + pos.y, -size.y]]:
+    for i, normal in [[pos.y, -size.y], [size.y + pos.y, size.y]]:
         ret.add(Tri3(
             Vec3(pos.x, i, pos.z),
             Vec3(pos.x, i, pos.z + size.z),
@@ -148,7 +148,7 @@ def rect_prism(size: Vec3, pos: Vec3 = Vec3(0, 0, 0)) -> Mesh:
             Vec3(0, normal, 0)
         ))
 
-    for i, normal in [[pos.z, size.z], [size.z + pos.z, -size.z]]:
+    for i, normal in [[pos.z, -size.z], [size.z + pos.z, size.z]]:
         ret.add(Tri3(
             Vec3(pos.x, pos.y, i), 
             Vec3(pos.x + size.x, pos.y, i), 

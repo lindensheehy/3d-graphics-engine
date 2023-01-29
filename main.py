@@ -121,7 +121,7 @@ class object:
 # Using a classes instead of the global keyword to avoid cluttering the namespace
 class camera:
 
-    movement_speed = 60
+    movement_speed = 200
 
     pos = Vec3(0, 0, 0)
     vel = Vec3(0, 0, 0)
@@ -131,7 +131,7 @@ class camera:
     pitch = 0   # Vertically, on the axis of yaw
     roll = 0   # Around z axis, on the yx plane
 
-    rotvec = Vec3(0, 0,  1)
+    rotvec = Vec3(0, 0, 1)
 
     fov = Vec2(120, 90)
 
@@ -335,7 +335,7 @@ def handle_input():
             camera.pitch = m.rollover(camera.pitch - (Global.dmouse_pos[1] / 10))
         Global.mouse_left_was_down = True
 
-    camera.rotvec = Vec3(1, 0, 0).rotate(camera.yaw, camera.pitch)
+    camera.rotvec = Vec3(0, 0, 1).rotate(-camera.yaw, -camera.pitch)
 
     # Change camera pitch to be in the range 270, 90
     if camera.pitch > 90 and camera.pitch <= 180:
@@ -354,7 +354,9 @@ def get_screen_pos(point: Vec3):
 
     # Get the points location relative to the x rotation of the camera
     relative = point.copy()
-    relative.rotate(camera.yaw, camera.pitch, camera.pos)
+
+    relative.rotate(camera.yaw, 0, camera.pos)
+    relative.z, relative.y = Vec2(relative.z, relative.y).rotate(camera.pitch, Vec2(camera.pos.z, camera.pos.y))
 
     # Check if point is behind camera
     if relative.z < camera.pos.z:
@@ -439,7 +441,9 @@ def main():
     '''
 
     obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
-
+    #obj = object(Vec3(100, 100, 100), Mesh())
+    #obj.mesh.add(Tri3(Vec3(100, 0, 100), Vec3(100, 100, 100), Vec3(0, 0, 100)))
+     
     running = True
 
     while running:

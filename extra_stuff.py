@@ -175,3 +175,37 @@ def collision(dx1: float, dy1: float, ox1: float, oy1: float, dx2: float, dy2: f
             y = eq2.m * (x - eq2.ox) + eq2.oy
 
         return (x, y)
+
+
+# Class function for Vec3. works well for projection related rotation but not so much for any other purpose
+def rotate(self, yaw: float = 0, pitch: float = 0, around = None):
+    '''
+    (Vec3, float, float, Vec3) -> Vec3
+    Rotates self by a yaw and pitch around some point and returns the new location
+    '''
+
+    try:
+
+        if around == None:
+            around = Vec3(0, 0, 0)
+        
+        # If yaw is not 0, rotate point along the x, z plane
+        if yaw != 0:
+            self.x, self.z = Vec2(self.x, self.z).rotate(yaw, Vec2(around.x, around.z))
+
+        # If pitch is not 0, rotate point along the plane shared between the vector and the y axis
+        if pitch != 0:
+
+            dist_from_y_axis = math.sqrt((self.x - around.x) ** 2 + (self.z - around.z) ** 2)
+
+            pitch_vec = Vec2(dist_from_y_axis, self.y)
+            pitch_vec.rotate(pitch)
+
+            self.x *= pitch_vec.x / dist_from_y_axis
+            self.z *= pitch_vec.x / dist_from_y_axis
+            self.y = pitch_vec.y
+
+        return self
+
+    except TypeError:
+        raise Exception(f"\n{self}.rotate2d(yaw = {yaw}, pitch = {pitch}, around = {around})\nInvalid Arguments")

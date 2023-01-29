@@ -232,6 +232,16 @@ class Vec3:
         self.z *= factor
         return self
 
+    def normalise(self, magnitude: float = 1):
+        '''
+        (Vec3, float)
+        Changes the magnitude of the vector while keeping the porportions of each component
+        '''
+        self.x *= magnitude / self.magnitude
+        self.y *= magnitude / self.magnitude
+        self.z *= magnitude / self.magnitude
+        return
+
     def distance_to(self, other):
         '''
         Returns the distance between one position and another
@@ -292,7 +302,6 @@ class Vec3:
             if around == None:
                 around = Vec3(0, 0, 0)
 
-            # If yaw is not 0, rotate point about the y axis
             if yaw != 0:
                 self.x, self.z = Vec2(self.x, self.z).rotate(yaw, Vec2(around.x, around.z))
 
@@ -300,6 +309,18 @@ class Vec3:
             # Because yaw rotation is done first, camera pitch axis always lines up with rotation around the x axis
             if pitch != 0:
                 self.z, self.y = Vec2(self.z, self.y).rotate(pitch, Vec2(around.z, around.y))
+
+            # If pitch is not 0, rotate point along the plane shared between the vector and the y axis
+            if pitch != 0:
+
+                dist_from_y_axis = math.sqrt((self.x - around.x) ** 2 + (self.z - around.z) ** 2)
+
+                pitch_vec = Vec2(dist_from_y_axis, self.y)
+                pitch_vec.rotate(pitch)
+
+                self.x *= pitch_vec.x / dist_from_y_axis
+                self.z *= pitch_vec.x / dist_from_y_axis
+                self.y = pitch_vec.y
 
             return self
 
