@@ -70,6 +70,7 @@ def points_to_mesh_2d(points: tuple) -> tuple:
     return mesh
 
 
+# Works fine but is far slower than the new version
 def restrict_tri(tri: tuple = ((0, 0), (0, 0), (0, 0)), bounds: tuple = ((0, 1500), (0, 750))) -> list:
     '''
     Returns a list of tuples of x and y coordinates for the shape of the triangle after being bound
@@ -126,6 +127,7 @@ def restrict_tri(tri: tuple = ((0, 0), (0, 0), (0, 0)), bounds: tuple = ((0, 150
     return poly
 
 
+# Was used for the restrict_tri function, but its an extremely overcomplicated way of solving the problem
 def collision(dx1: float, dy1: float, ox1: float, oy1: float, dx2: float, dy2: float, ox2: float, oy2: float) -> tuple:
         '''
         dx and dy represent the slope of the line
@@ -188,22 +190,15 @@ def rotate(self, yaw: float = 0, pitch: float = 0, around = None):
 
         if around == None:
             around = Vec3(0, 0, 0)
-        
-        # If yaw is not 0, rotate point along the x, z plane
+
+        # If yaw is not 0, rotate point about the y axis
         if yaw != 0:
             self.x, self.z = Vec2(self.x, self.z).rotate(yaw, Vec2(around.x, around.z))
 
-        # If pitch is not 0, rotate point along the plane shared between the vector and the y axis
+        # If pitch is not 0, rotate point about the x axis
+        # Because yaw rotation is done first, camera pitch axis always lines up with rotation around the x axis
         if pitch != 0:
-
-            dist_from_y_axis = math.sqrt((self.x - around.x) ** 2 + (self.z - around.z) ** 2)
-
-            pitch_vec = Vec2(dist_from_y_axis, self.y)
-            pitch_vec.rotate(pitch)
-
-            self.x *= pitch_vec.x / dist_from_y_axis
-            self.z *= pitch_vec.x / dist_from_y_axis
-            self.y = pitch_vec.y
+            self.z, self.y = Vec2(self.z, self.y).rotate(pitch, Vec2(around.z, around.y))
 
         return self
 

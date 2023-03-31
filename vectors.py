@@ -305,11 +305,6 @@ class Vec3:
             if yaw != 0:
                 self.x, self.z = Vec2(self.x, self.z).rotate(yaw, Vec2(around.x, around.z))
 
-            # If pitch is not 0, rotate point about the x axis
-            # Because yaw rotation is done first, camera pitch axis always lines up with rotation around the x axis
-            if pitch != 0:
-                self.z, self.y = Vec2(self.z, self.y).rotate(pitch, Vec2(around.z, around.y))
-
             # If pitch is not 0, rotate point along the plane shared between the vector and the y axis
             if pitch != 0:
 

@@ -440,7 +440,8 @@ def main():
     This function contains the entire program. The primary code here is the loop that runs while the GUI window is open
     '''
 
-    obj = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
+    box1 = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
+    box2 = object(Vec3(300, 300, 300), geometry.rect_prism(Vec3(50, 50, 50), Vec3(300, 300, 300)))
     #obj = object(Vec3(100, 100, 100), Mesh())
     #obj.mesh.add(Tri3(Vec3(100, 0, 100), Vec3(100, 100, 100), Vec3(0, 0, 100)))
      
