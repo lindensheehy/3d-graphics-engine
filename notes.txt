@@ -1,0 +1,15 @@
+This is a list of things i want to add to this project as well as the difficulty i think they will be to add
+
+- object physics
+    - gravity (easy)
+    - collision with ground (relatively simple)
+    - collision with other objects (probably tough)
+    - physics on ground collision (likely pretty hard)
+    - physics on collision with other objects (i think this will be hardest)
+- object shapes
+    - spheres (easy to add, hard to mnake look 3d with shading)
+    - capsules, two spheres connected by a rectangle (shouldnt be too much harder than spheres)
+    - smooth terrain (this will be much more difficult than spheres i think although the concept is similar)
+- graphics
+    - sprites, as in images which will be drawn onto the surface of shapes (i think this will be fairly easy for rectangles but very difficult for anything curved)
+    - shaders, not fully sure what this means but i think its important towards making things look good (probably very hard)

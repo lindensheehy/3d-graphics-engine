@@ -4,7 +4,7 @@ import math, time, json, random
 import geometry
 from mathfuncs import my_math_functions as m
 from geometry import Tri2, Tri3, Bounds2, Bounds3, Mesh
-from vectors import Vec2, Vec3
+from vectors_lib.vectors import Vec2, Vec3
 
 # These classes are used to create variables with attributes. For example coordinates or angles
 class matrix2d:
@@ -106,6 +106,22 @@ class object:
         print(f"Object Created at {self.pos}")
         object.instances.remove(self)
 
+    def move(self, move_vec: Vec3):
+        for tri in self.mesh.tris:
+            tri.move(move_vec)
+
+    def rotate(self, yaw, pitch, roll, around: Vec3 = None):
+        '''
+        rotates the object around some point
+        if no point it given to rotate around, it will rotate around its own center
+        '''
+
+        if around is None:
+            around = self.pos
+        
+        for tri in self.mesh.tris:
+            tri.rotate(yaw, pitch, roll, around)
+
     def do_frame(self):
         self.pos.x += self.velocity.x * Global.dt
         self.pos.y += self.velocity.y * Global.dt
@@ -123,17 +139,17 @@ class camera:
 
     movement_speed = 200
 
-    pos = Vec3(0, 0, 0)
+    pos = Vec3(-500, 500, -500)
     vel = Vec3(0, 0, 0)
     acc = Vec3(0, 0, 0)
 
-    yaw = 0   # Around y axis, on the xz plane
-    pitch = 0   # Vertically, on the axis of yaw
+    yaw = 45   # Around y axis, on the xz plane
+    pitch = 45   # Vertically, on the axis of yaw
     roll = 0   # Around z axis, on the yx plane
 
     rotvec = Vec3(0, 0, 1)
 
-    fov = Vec2(120, 90)
+    fov = Vec2(80, 40)
 
 class display:
 
@@ -160,7 +176,7 @@ class Global:
     mouse_pos = pg.mouse.get_pos()   # Current mouse pos
     dmouse_pos = None   # Change in mouse pos since last frame
     keys_down = []   # List of key ids which were pressed on the last frame
-    print_keys = False   # Bool if keys pressed are printed to console or not
+    print_keys = True   # Bool if keys pressed are printed to console or not
 
     objects = []   # List of all objects currently which exist
     
@@ -238,7 +254,15 @@ def do_physics():
             camera.pos.y = Global.abs_floor
 
 def draw_objects():
+
+    distances = list()
+
     for item in object.instances:
+        distances.append([camera.pos.distance_to(item.pos), item])
+
+    distances.sort(reverse = True)
+
+    for dist, item in distances:
         draw_mesh(item.mesh)
     return
 
@@ -326,6 +350,20 @@ def handle_input():
         if key[0] == controls["toggle_fly_mode"] and not key[1]:
             print(camera.rotvec)
             Global.fly_mode = not Global.fly_mode
+
+        global box1
+
+        if key[0] == 14:
+            #box1.move(Vec3(0, 1, 0))
+            box1.rotate(0, 1, 0)
+
+        if key[0] == 13:
+            #box1.move(Vec3(0, 1, 0))
+            box1.rotate(1, 0, 0)
+
+        if key[0] == 15:
+            #box1.move(Vec3(0, 1, 0))
+            box1.rotate(0, 0, 1)
     
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
@@ -335,7 +373,10 @@ def handle_input():
             camera.pitch = m.rollover(camera.pitch - (Global.dmouse_pos[1] / 10))
         Global.mouse_left_was_down = True
 
-    camera.rotvec = Vec3(0, 0, 1).rotate(-camera.yaw, -camera.pitch)
+    # Pitch rotation needs to be done first
+    camera.rotvec = Vec3(0, 0, 1)
+    camera.rotvec.rotate(0, camera.pitch, 0)
+    camera.rotvec.rotate(-camera.yaw, 0, 0)
 
     # Change camera pitch to be in the range 270, 90
     if camera.pitch > 90 and camera.pitch <= 180:
@@ -345,9 +386,10 @@ def handle_input():
 
     return
 
-def get_screen_pos(point: Vec3):
+def get_screen_pos(point: Vec3) -> Vec2:
     '''
-    Returns a the location on the screen of a point in 3d space. Returns None if point is not in fov
+    Returns a the location on the screen of a point in 3d space. Returns None if point is behind camera
+    Can return coordinates outside the size of the screen so that triangles which are partially off screen can still be drawn correctly
     '''
 
     screen_pos = Vec2(0, 0)
@@ -355,8 +397,8 @@ def get_screen_pos(point: Vec3):
     # Get the points location relative to the x rotation of the camera
     relative = point.copy()
 
-    relative.rotate(camera.yaw, 0, camera.pos)
-    relative.z, relative.y = Vec2(relative.z, relative.y).rotate(camera.pitch, Vec2(camera.pos.z, camera.pos.y))
+    relative.rotate(camera.yaw, 0, 0, camera.pos)
+    relative.rotate(0, -camera.pitch, 0, camera.pos)
 
     # Check if point is behind camera
     if relative.z < camera.pos.z:
@@ -373,15 +415,20 @@ def get_screen_pos(point: Vec3):
     angley = round(360 - angley, 2)
 
     # Gets a value 0-1 for how far the point is towards the top left in x and y directions then translates that to a screen coordinate
+    # This value has 0 being 90 degrees left of the camera and 1 being 90 degrees right of the camera for a total usable range of 180 degrees
     in_range_x = m.in_angle(-180, 180, m.rollover(anglex + 180) - 180)
     in_range_y = m.in_angle(-180, 180, m.rollover(angley + 180) - 180)
 
-    screen_pos.x = in_range_x * (display.width * 3) - display.width
-    screen_pos.y = in_range_y * (display.height * 4) - (display.height * (3 / 2))
+    # This takes the above x and y decimal values and turns them into usable screen coordinates based on the cameras fov
+    # with an fov of 180, the decial would simply be upscaled and a smaller fov means a smaller range in which these "in_range" varibles would produce points shwon on screen
+    rangex = display.width * (180 / camera.fov.x)
+    rangey = display.height * (180 / camera.fov.y)
+    screen_pos.x = in_range_x * rangex - ((rangex - display.width) / 2)
+    screen_pos.y = in_range_y * rangey - ((rangey - display.height) / 2)
 
     return screen_pos
 
-def draw_tri(tri: Tri3) -> bool: 
+def draw_tri(tri: Tri3, show_normal = False) -> bool: 
     '''
     Draws a triangle to the screen.
     '''
@@ -413,6 +460,15 @@ def draw_tri(tri: Tri3) -> bool:
     shade = tri.facing_vec(Global.lighting_vec)
     pg.draw.polygon(Global.screen, (shade * 255, shade * 255, shade * 255), poly, width=0)
 
+    # Draw the triangles normal vector
+    if show_normal:
+        try:
+            normal_start = tuple(get_screen_pos(tri.center()))
+            normal_end = tuple(get_screen_pos(tri.center() + (tri.normal * 5)))
+            pg.draw.line(Global.screen, (255, 0, 0), normal_start, normal_end)
+        except TypeError:
+            pass
+
     return True
 
 def draw_mesh(mesh: Mesh) -> int:
@@ -421,16 +477,25 @@ def draw_mesh(mesh: Mesh) -> int:
     Returns number of triangles drawn
     '''
 
+    tris_in_draw_dist = list()
+
+    # Check all triangles to make sure they are in the draw distance
+    for tri in mesh.tris:
+        # Draw distance of -1 means none was given and therefore always draw the traingle
+        if (mesh.max_draw_dist == -1) or (tri.center().distance_to(camera.pos) < mesh.max_draw_dist):
+            tris_in_draw_dist.append(tri)
+
     tri_list = list()
 
-    for index, tri in enumerate(mesh.tris):
-        tri_list.append([camera.pos.distance_to(tri.center()), index, tri])
+    # Sorts tris in mesh based on how similar their normal vec is to the camera facing vec, and then draws them from least similar to most
+    for index, tri in enumerate(tris_in_draw_dist):
+        tri_list.append([tri.facing_vec(camera.rotvec), index, tri])
     tri_list.sort(reverse = True)
 
     tris_drawn = 0
 
     for i in tri_list:
-        draw_tri(i[2])
+        draw_tri(i[2], True)
         tris_drawn += 1
 
     return tris_drawn
@@ -439,16 +504,41 @@ def main():
     '''
     This function contains the entire program. The primary code here is the loop that runs while the GUI window is open
     '''
+    global box1
+    box1 = object(Vec3(50, 50, 50), geometry.rect_prism(Vec3(100, 100, 100)))
+    #box2 = object(Vec3(300, 300, 300), geometry.rect_prism(Vec3(50, 50, 50), Vec3(300, 300, 300)))
 
-    box1 = object(Vec3(100, 100, 100), geometry.rect_prism(Vec3(100, 100, 100)))
-    box2 = object(Vec3(300, 300, 300), geometry.rect_prism(Vec3(50, 50, 50), Vec3(300, 300, 300)))
+    # This huge block makes a simple mesh of just 2 triangles at y = 0 which acts as the floor
+    '''
+    floor = object(
+        Vec3(0, -1000, 0), 
+        Mesh(
+            [
+                Tri3(
+                    Vec3(-1000, 0, -1000),
+                    Vec3(-1000, 0, 1000),
+                    Vec3(1000, 0, -1000)
+                ),
+                Tri3(
+                    Vec3(1000, 0, 1000),
+                    Vec3(1000, 0, -1000),
+                    Vec3(-1000, 0, 1000)
+                )
+            ],
+            max_draw_dist = -1
+        )
+    )
+    '''
+    #floor.mesh.downsize_tris(1000)
+
+
     #obj = object(Vec3(100, 100, 100), Mesh())
     #obj.mesh.add(Tri3(Vec3(100, 0, 100), Vec3(100, 100, 100), Vec3(0, 0, 100)))
      
     running = True
 
     while running:
-        
+
         events = pg.event.get()
 
         update_dt()
@@ -461,6 +551,14 @@ def main():
         draw_sky()
         draw_objects()
         draw_fps()
+
+        try:
+            center = Vec3(0, 0, 0)
+            normal_start = tuple(get_screen_pos(center))
+            normal_end = tuple(get_screen_pos(camera.rotvec * 10))
+            pg.draw.line(Global.screen, (255, 0, 0), normal_start, normal_end)
+        except TypeError:
+            pass
 
         pg.display.update()
 

@@ -1,6 +1,5 @@
 import math
 
-# These are all the raw number manipulation functions
 class my_math_functions:
     
     def num_between(num: float, low: float, high: float) -> float:
@@ -95,3 +94,9 @@ class my_math_functions:
         # If none of the above apply, the angle lies in quadrant 1 meaning there is no adjustment needed.
 
         return angle
+
+    def smooth(x: float, y1: float, y2: float):
+        '''
+        returns a value in between y1 and y2 based on the value of x, such that  { 0 <= x <= 1 }
+        function will act similar to a sin wave with slope nearing 0 at each bound and being steepest at x=0.5
+        '''

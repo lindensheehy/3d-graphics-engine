@@ -204,3 +204,62 @@ def rotate(self, yaw: float = 0, pitch: float = 0, around = None):
 
     except TypeError:
         raise Exception(f"\n{self}.rotate2d(yaw = {yaw}, pitch = {pitch}, around = {around})\nInvalid Arguments")
+
+
+# Similar to the method above this really only works for projection rotation but i thought the way its done is cool so i want to keep it around
+def rotate(self, yaw: float = 0, pitch: float = 0, around = None):
+    '''
+    (Vec3, float, float, Vec3) -> Vec3
+    Rotates self by a yaw and pitch around some point and returns the new location
+    '''
+
+    # This function re-uses code from vec2.rotate(), but i wanted Vec2 and Vec3 to be independent from each other so i rewrote it
+
+    if around is None:
+        around = Vec3(0, 0, 0)
+
+    # relative position
+    rel = Vec3(self.x - around.x, self.y - around.y, self.z - around.z)
+
+    try:
+
+        if yaw != 0:
+
+            # Trig values
+            sin = math.sin(math.radians(yaw))
+            cos = math.cos(math.radians(yaw))
+
+            # New components
+            self.x = (cos * rel.x) - (sin * rel.z) + around.x
+            self.z = (cos * rel.z) + (sin * rel.x) + around.z
+
+        # If pitch is not 0, rotate point along the plane shared between the vector and the y axis
+        if pitch != 0:
+
+            # pitch rotation is done by treating the points location as a vertical triangle
+            # the height is the points y component and the length is the distance along the xz plane between the point and (0, NA, 0)
+            # this point is then rotated along the plane which the triangle lies on
+            # this explanation is mostly for myself because im sure ill forget...
+
+            dist_from_y_axis = math.sqrt((rel.x ** 2) + (rel.z ** 2))
+            
+            # if the point lies upon the axis which it should rotate around, no rotation needs to be done
+            if dist_from_y_axis == 0:
+                return self
+
+            # Trig values
+            sin = math.sin(math.radians(pitch))
+            cos = math.cos(math.radians(pitch))
+
+            # x, z comps
+            new_dist = (cos * dist_from_y_axis) - (sin * self.y)
+            self.x *= new_dist / dist_from_y_axis
+            self.z *= new_dist / dist_from_y_axis
+
+            # y comp
+            self.y = (cos * self.y) + (sin * dist_from_y_axis)
+
+        return self
+
+    except TypeError:
+        raise Exception(f"\n{self}.rotate2d(yaw = {yaw}, pitch = {pitch}, around = {around})\nInvalid Arguments")

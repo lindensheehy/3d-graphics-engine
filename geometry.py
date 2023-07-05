@@ -1,4 +1,6 @@
-from vectors import Vec2, Vec3
+import math
+from vectors_lib.Vec2 import Vec2
+from vectors_lib.Vec3 import Vec3
 from mathfuncs import my_math_functions as m
 
 class Bounds2:
@@ -10,11 +12,11 @@ class Bounds2:
         self.high = high
     
     def __repr__(self):
-        return f"Bounds between {self.low} and {self.high}"
+        return f"Bounds2({self.low} - {self.high})"
 
     def __iter__(self):
-        yield (self.low.x, self.low.y)
-        yield (self.high.x, self.high.y)
+        yield self.low
+        yield self.high
         
 class Bounds3:
     '''
@@ -69,6 +71,7 @@ class Tri3:
             self.normal = v1.cross_product(v2)
         else:
             self.normal = normal
+        self.normal.normalise()
 
     def __repr__(self) -> str:
         '''
@@ -89,9 +92,9 @@ class Tri3:
         '''
         Returns the center of the triangle as a Vec3
         '''
-        x = (self.p1.x + self.p1.x + self.p1.x) / 3
-        y = (self.p1.y + self.p1.y + self.p1.y) / 3
-        z = (self.p1.z + self.p1.z + self.p1.z) / 3
+        x = (self.p1.x + self.p2.x + self.p3.x) / 3
+        y = (self.p1.y + self.p2.y + self.p3.y) / 3
+        z = (self.p1.z + self.p2.z + self.p3.z) / 3
         return Vec3(x, y, z)
 
     def facing_vec(self, vec: Vec3 = Vec3(0, 1, 0)):
@@ -105,12 +108,137 @@ class Tri3:
     def is_facing(self, vec: Vec3 = Vec3(0, 1, 0)) -> bool:
         return vec.angle_to(self.normal) >= 90
 
+    def perimeter(self):
+        '''
+        returns the length of all the sides of the triangle
+        '''
+
+        vertices = [self.p1, self.p2, self.p3, self.p1]
+        perimeter = 0
+
+        for i in range(3):
+            perimeter += vertices[i].distance_to(vertices[i + 1])
+
+        return perimeter
+
+    def move(self, move_vec: Vec3):
+        self.p1 += move_vec
+        self.p2 += move_vec
+        self.p3 += move_vec
+
+    def rotate(self, yaw, pitch, roll, around: Vec3 = Vec3(0, 0, 0)):
+        self.p1.rotate(yaw, pitch, roll, around)
+        self.p2.rotate(yaw, pitch, roll, around)
+        self.p3.rotate(yaw, pitch, roll, around)
+        self.normal.rotate(yaw, pitch, roll)
+
 class Mesh:
-    def __init__(self):
-        self.tris = []
+    def __init__(self, tri_list: list = list(), max_draw_dist: float = -1):
+        self.tris = tri_list
+        self.max_draw_dist = max_draw_dist
 
     def add(self, new: Tri3):
         self.tris.append(new)
+
+    def downsize_tris(self, max_perimeter: float = 100):
+        '''
+        Makes all the traingles in the mesh have a max perimeter of some value
+        ideally this would do area rather than perimeter but perimeter if effectively very similar and much faster to calculate
+        This makes it so that big polygons can be partially drawn rather than only being drawn when the whole shape is in the fov
+        '''
+
+        run_again = False
+        new_tris = list()
+
+        for tri in self.tris:
+
+            perimeter = tri.perimeter()
+
+            # If the perimeter of any triangle is more than double the max allowed, the function will need to run again
+            # in order to downsize the triangle to under the max perimeter (downsizing halves the perimeter)
+            if perimeter > max_perimeter * 2:
+                run_again = True
+
+            # Splits up the triangle into 4 smaller ones if the perimeter is too high
+            if perimeter > max_perimeter:
+
+                # Get the midpoints between all vertices
+                midpoint12 = tri.p1.midpoint(tri.p2)
+                midpoint23 = tri.p2.midpoint(tri.p3)
+                midpoint31 = tri.p3.midpoint(tri.p1)
+
+                # Instantiate the new triangles
+                newtri1 = Tri3(tri.p1, midpoint12, midpoint31, tri.normal)      # triangle near p1
+                newtri2 = Tri3(tri.p2, midpoint12, midpoint23, tri.normal)      # triangle near p2
+                newtri3 = Tri3(tri.p3, midpoint23, midpoint31, tri.normal)      # triangle near p3
+                newtri4 = Tri3(midpoint12, midpoint23, midpoint31, tri.normal)  # triangle formed in the center of the other 3
+
+                # Add the new sub triangles to the new tri list
+                new_tris.append(newtri1)
+                new_tris.append(newtri2)
+                new_tris.append(newtri3)
+                new_tris.append(newtri4)
+
+            else:
+                new_tris.append(tri)
+
+        self.tris = new_tris
+        
+        if run_again:
+            self.downsize_tris(max_perimeter)
+        
+        return
+
+        if count < 1:
+            return self
+
+        new_tris = list()
+
+        for tri in self.tris:
+
+            tri_tuple = tuple(tri)
+
+            split_up = False
+
+            for i in range(3):
+                if (tri_tuple[i].distance_to(tri_tuple[m.rollover(i + 1, 0, 2)])) > side_length:
+                    split_up = True
+                    midpoint = tri_tuple[i].midpoint(tri_tuple[m.rollover(i + 1, 0, 2)])
+
+                    # This looks complicated but its just using the rollover function to get the other verticies of the triangle
+                    # Both new tris have the midpoint, the third unused vertex and each have one of the other verticies on either end of the midpoint
+                    new_tri1 = Tri3(midpoint, tri_tuple[m.rollover(i + 2, -1, 2)], tri_tuple[i], tri.normal)
+                    new_tri2 = Tri3(midpoint, tri_tuple[m.rollover(i + 2, -1, 2)], tri_tuple[m.rollover(i + 1, -1, 2)], tri.normal)
+
+                    new_tris.append(new_tri1)
+                    new_tris.append(new_tri2)
+                    break
+
+            if not split_up:
+                new_tris.append(tri)
+
+        self.tris = new_tris
+
+        self.reduce_tris(side_length, count - 1)
+
+class Noise2:
+    def __init__(self, start: float, height: float, grid_size: float):
+        self.start = start
+        self.height = height
+        self.grid_size = grid_size
+
+    def get(self, pos: Vec2):
+        '''
+        returns the height of the noise at a given x, y
+        '''
+
+        x1 = math.floor(pos.x)
+        x2 = math.ceil(pos.x)
+        y1 = math.floor(pos.y)
+        y2 = math.ceil(pos.y)
+
+        dx = pos.x - math.floor(pos.x)
+        dy = pos.y = math.floor(pos.y)
 
 def rect_prism(size: Vec3, pos: Vec3 = Vec3(0, 0, 0)) -> Mesh:
     '''
