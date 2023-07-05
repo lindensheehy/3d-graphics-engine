@@ -13,6 +13,7 @@ During the development of this project i was in need of a library for vectors, s
 This library is also in a seperate project on my github
 
 Current version notes:
+- wasd to move around on the xz axis, space and ctrl to ascend and descend respectively
 - The red lines on the cube are the normals of the triangles which make up the cube. Theres no arrows but they are pointing outwards from the shape
 - Made fov smaller so the fisheye effet is reduced
 - only 1 cube is shown on screen but the cube can be rotated around the y, x and z axis using the keys j, k and l repesctively
