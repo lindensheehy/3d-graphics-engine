@@ -137,8 +137,21 @@ class Mesh:
         self.tris = tri_list
         self.max_draw_dist = max_draw_dist
 
+        self.nodes = set()
+        for tri in tri_list:
+            for v in tri:
+                if v not in self.nodes:
+                    self.nodes.add(v)
+
     def add(self, new: Tri3):
         self.tris.append(new)
+
+    def move(self, move_vec: Vec3):
+        '''
+        Moves all the tris in the mesh by some amount
+        '''
+        for tri in self.tris:
+            tri.move(move_vec)
 
     def downsize_tris(self, max_perimeter: float = 100):
         '''

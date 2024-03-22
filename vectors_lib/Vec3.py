@@ -105,7 +105,17 @@ class Vec3:
         yield self.y
         yield self.z
 
-    # Class functions
+    def __getitem__(self, key):
+        '''
+        allows vectors to be indexed similar to an array ( ie. Vec3[0] would refer to Vec3.x )
+        could be used inside a for loop
+        '''
+        try:
+            return tuple(self)[key]
+        except IndexError:
+            raise Exception(f"Cannot get index {key} of a Vec3 object (index must be 0-2 inclusive)")
+
+    # Instance functions
     def copy(self):
         '''
         Returns a vector with the same components in a new memory location

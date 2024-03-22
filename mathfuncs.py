@@ -86,9 +86,9 @@ class my_math_functions:
             angle = 0
 
         # Adjust the angle based on the quadrant the point lies in. Range 0-360
-        if p2y < p1y:
+        if p2y > p1y:
             angle = 180 - angle
-        if p2x < p1x:
+        if p2x > p1x:
             angle = 360 - angle
         
         # If none of the above apply, the angle lies in quadrant 1 meaning there is no adjustment needed.

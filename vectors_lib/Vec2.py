@@ -102,6 +102,16 @@ class Vec2:
         yield self.x
         yield self.y
 
+    def __getitem__(self, key):
+        '''
+        allows vectors to be indexed similar to an array ( ie. Vec2[0] would refer to Vec2.x )
+        could be used inside a for loop
+        '''
+        try:
+            return tuple(self)[key]
+        except IndexError:
+            raise Exception(f"Cannot get index {key} of a Vec2 object (index must be 0-1 inclusive)")
+
     # Instance functions
     def copy(self):
         '''

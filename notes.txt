@@ -13,3 +13,5 @@ This is a list of things i want to add to this project as well as the difficulty
 - graphics
     - sprites, as in images which will be drawn onto the surface of shapes (i think this will be fairly easy for rectangles but very difficult for anything curved)
     - shaders, not fully sure what this means but i think its important towards making things look good (probably very hard)
+- functionality
+    - have a check for if the camera is hovering any objects (should be easy for spheres but anything else probably hard)

@@ -5,6 +5,7 @@ import geometry
 from mathfuncs import my_math_functions as m
 from geometry import Tri2, Tri3, Bounds2, Bounds3, Mesh
 from vectors_lib.vectors import Vec2, Vec3
+from objects import *
 
 # These classes are used to create variables with attributes. For example coordinates or angles
 class matrix2d:
@@ -88,51 +89,6 @@ class matrix2d:
         
         return total
 
-class object:
-
-    instances = set()
-
-    def __init__(self, pos: Vec3, mesh: Mesh, mass: float = 0):
-        print(f"Object Created at {pos}")
-        object.instances.add(self)
-
-        self.mesh = mesh
-        self.mass = mass
-        self.pos = pos
-        self.velocity = Vec3(0, 0, 0)
-        self.acceleration = Vec3(0, 0, 0)
-
-    def __del__(self):
-        print(f"Object Created at {self.pos}")
-        object.instances.remove(self)
-
-    def move(self, move_vec: Vec3):
-        for tri in self.mesh.tris:
-            tri.move(move_vec)
-
-    def rotate(self, yaw, pitch, roll, around: Vec3 = None):
-        '''
-        rotates the object around some point
-        if no point it given to rotate around, it will rotate around its own center
-        '''
-
-        if around is None:
-            around = self.pos
-        
-        for tri in self.mesh.tris:
-            tri.rotate(yaw, pitch, roll, around)
-
-    def do_frame(self):
-        self.pos.x += self.velocity.x * Global.dt
-        self.pos.y += self.velocity.y * Global.dt
-        self.pos.z += self.velocity.z * Global.dt
-
-        self.velocity.x += self.acceleration.x * Global.dt
-        self.velocity.y += self.acceleration.y * Global.dt
-        self.velocity.z += self.acceleration.z * Global.dt
-
-        self.velocity.y += Global.gravity * Global.dt
-
 # Classes containing variables which need to be avaliable throughout all functions
 # Using a classes instead of the global keyword to avoid cluttering the namespace
 class camera:
@@ -142,6 +98,7 @@ class camera:
     pos = Vec3(-500, 500, -500)
     vel = Vec3(0, 0, 0)
     acc = Vec3(0, 0, 0)
+    gravity = -500
 
     yaw = 45   # Around y axis, on the xz plane
     pitch = 45   # Vertically, on the axis of yaw
@@ -149,7 +106,7 @@ class camera:
 
     rotvec = Vec3(0, 0, 1)
 
-    fov = Vec2(80, 40)
+    fov = Vec2(40, 20)
 
 class display:
 
@@ -226,6 +183,17 @@ def draw_fps():
 
     return
 
+def draw_crosshair():
+    '''
+    Draws a crosshair at the center of the screen
+    Used to show what the camera is "looking" at
+    '''
+
+    pg.draw.line(Global.screen, (0, 255, 0), (750, 370), (750, 380), 1)
+    pg.draw.line(Global.screen, (0, 255, 0), (745, 375), (755, 375), 1)
+
+    return
+
 def draw_sky():
     '''
     Draws the blue background to the window to give the player an idea of thier camera pitch
@@ -246,23 +214,31 @@ def do_physics():
     Makes all objects do what they need to do for the frame
     Only does velocity, acceleration etc.
     '''
+
+    # Camera
     if not Global.fly_mode:
-        camera.vel.y += Global.gravity * Global.dt
+        camera.vel.y += camera.gravity * Global.dt
         camera.pos.y += camera.vel.y * Global.dt
         if camera.pos.y < Global.abs_floor:
             camera.vel.y = 0
             camera.pos.y = Global.abs_floor
 
+    # Objects
+    for obj in Object.instances:
+        obj.do_physics(Global.dt)
+
 def draw_objects():
 
     distances = list()
+    num = 0  # This avoids objects at the same place from being sorted poorly
 
-    for item in object.instances:
-        distances.append([camera.pos.distance_to(item.pos), item])
+    for item in Object.instances:
+        distances.append([camera.pos.distance_to(item.pos), num, item])
+        num += 1
 
     distances.sort(reverse = True)
 
-    for dist, item in distances:
+    for dist, skip, item in distances:
         draw_mesh(item.mesh)
     return
 
@@ -352,18 +328,20 @@ def handle_input():
             Global.fly_mode = not Global.fly_mode
 
         global box1
+        rotate_around = None
 
         if key[0] == 14:
             #box1.move(Vec3(0, 1, 0))
-            box1.rotate(0, 1, 0)
+            box1.rotate(0, 1, 0, rotate_around)
+            #box1.gravity = Vec3(0, -10, 0)
 
         if key[0] == 13:
             #box1.move(Vec3(0, 1, 0))
-            box1.rotate(1, 0, 0)
+            box1.rotate(1, 0, 0, rotate_around)
 
         if key[0] == 15:
             #box1.move(Vec3(0, 1, 0))
-            box1.rotate(0, 0, 1)
+            box1.rotate(0, 0, 1, rotate_around)
     
     # Mouse Movement
     if pg.mouse.get_pressed()[0]:
@@ -458,7 +436,7 @@ def draw_tri(tri: Tri3, show_normal = False) -> bool:
         
     # Get a shading value and then draw the traingle in a respective lighting
     shade = tri.facing_vec(Global.lighting_vec)
-    pg.draw.polygon(Global.screen, (shade * 255, shade * 255, shade * 255), poly, width=0)
+    pg.draw.polygon(Global.screen, ((shade * 50) + 205, shade * 255, shade * 255), poly, width=0)
 
     # Draw the triangles normal vector
     if show_normal:
@@ -505,7 +483,9 @@ def main():
     This function contains the entire program. The primary code here is the loop that runs while the GUI window is open
     '''
     global box1
-    box1 = object(Vec3(50, 50, 50), geometry.rect_prism(Vec3(100, 100, 100)))
+    box1 = PhysicsObject(Vec3(50, 50, 50), geometry.rect_prism(Vec3(100, 100, 100)), 100)
+    box2 = PhysicsObject(Vec3(150, 150, 150), geometry.rect_prism(Vec3(100, 100, 100), Vec3(250, 250, 250)), 100)
+    box3 = PhysicsObject(Vec3(250, 250, 250), geometry.rect_prism(Vec3(100, 100, 100), Vec3(-250, 250, -250)), 100)
     #box2 = object(Vec3(300, 300, 300), geometry.rect_prism(Vec3(50, 50, 50), Vec3(300, 300, 300)))
 
     # This huge block makes a simple mesh of just 2 triangles at y = 0 which acts as the floor
@@ -559,6 +539,8 @@ def main():
             pg.draw.line(Global.screen, (255, 0, 0), normal_start, normal_end)
         except TypeError:
             pass
+
+        draw_crosshair()
 
         pg.display.update()
 
